@@ -70,7 +70,7 @@ class PipeShape:
         
         return ret
     
-    def to_vtk(self, add_edges=True, fill_with_triangles=False) -> vtk.vtkPolyData:
+    def to_vtk(self, mode: str = None) -> vtk.vtkPolyData:
         # mirror and normalize
         xz_pointz = self.normalize_points()
 
@@ -87,13 +87,19 @@ class PipeShape:
         vtk_cells = vtk.vtkCellArray()
         polydata.SetPolys(vtk_cells)
 
-        return self.add_vtk_cells(polydata, 0, add_edges, fill_with_triangles)
+        self.add_vtk_cells(polydata, 0, mode)
 
-    def add_vtk_cells(self, polydata: vtk.vtkPolyData, starting_point_id: int, add_edges=True, fill_with_triangles=False) -> vtk.vtkPolyData:
+        return polydata
+
+    def add_vtk_cells(self, polydata: vtk.vtkPolyData, starting_point_id: int, mode="triangles") -> list[int]:
         p0_id = starting_point_id
         npoints = len(self.normalize_points())
         vtk_points: vtk.vtkPoints = polydata.GetPoints()
         vtk_cells: vtk.vtkCellArray = polydata.GetPolys()
+
+        # set defaults
+        if mode is None:
+            mode = "triangles"
 
         # get the set of points that this shape belongs to
         xyz_points: list[tuple[float, float, float]] = []
@@ -101,8 +107,8 @@ class PipeShape:
             j = i + p0_id
             xyz_points.append(vtk_points.GetPoint(j))
 
-        # Add a point in the middle for all triangles to adjoin to
-        if fill_with_triangles:
+        if mode == "triangles":
+            # Add a point in the middle for all triangles to adjoin to
             xs, ys, zs = [x for x, y, z in xyz_points], [y for x, y, z in xyz_points], [z for x, y, z in xyz_points]
             z_min = np.min(zs)
             x_avg, y_avg = np.average(xs), np.average(ys)
@@ -111,18 +117,7 @@ class PipeShape:
             mid_point_id = p0_id + npoints
             vt.insert_points(polydata, mid_point_id, mid_point)
 
-        # Create lines
-        if add_edges and not fill_with_triangles:
-            for i in range(npoints):
-                p1 = p0_id+i
-                p2 = p0_id if i == npoints-1 else p1+1
-                line = vtk.vtkLine()
-                line.GetPointIds().SetId(0, p1)
-                line.GetPointIds().SetId(1, p2)
-                vtk_cells.InsertNextCell(line)
-
-        # Create triangles
-        if fill_with_triangles:
+            # Create triangles
             for i in range(npoints):
                 p1 = p0_id+i
                 p2 = p0_id if i == npoints-1 else p1+1
@@ -131,8 +126,23 @@ class PipeShape:
                 triangle.GetPointIds().SetId(1, p2)
                 triangle.GetPointIds().SetId(2, mid_point_id)
                 vtk_cells.InsertNextCell(triangle)
+            
+            return [mid_point_id]
 
-        return polydata
+        elif mode == "edges":
+            # Create lines
+            for i in range(npoints):
+                p1 = p0_id+i
+                p2 = p0_id if i == npoints-1 else p1+1
+                line = vtk.vtkLine()
+                line.GetPointIds().SetId(0, p1)
+                line.GetPointIds().SetId(1, p2)
+                vtk_cells.InsertNextCell(line)
+            
+            return []
+
+        else:
+            raise RuntimeError(f"In PipeShape.add_vtk_cells(): unknown mode, expected either \"edges\" or \"triangles\" but got \"{mode}\".")
     
 class PipeBasicBox(PipeShape):
     """
