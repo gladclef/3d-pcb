@@ -2,11 +2,6 @@ numpy
 scipy
 vtk
 conda-forge::pyvista
-conda-forge::vtkbool
-solidpython2
-
-### must be installed with pip
-# solidpython2
 
 ### optional, for interactive visualization
 # ipywidgets
