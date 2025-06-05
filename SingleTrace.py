@@ -7,10 +7,12 @@ import vtk
 from vtk.util import numpy_support # type: ignore
 from vtkbool import vtkBool
 
+from AbstractTrace import AbstractTrace
+from AbstractVtkPointTracker import AbstractVtkPointTracker as PntInc
 from PipeShape import PipeShape
 import vtk_tools as vt
 
-class SegmentPoints:
+class SegmentPoints(PntInc):
     def __init__(self, xyz_points: np.ndarray, vtk_indices: list[int] = None):
         if vtk_indices is None:
             vtk_indices = [None for i in range(xyz_points.shape[0])]
@@ -26,7 +28,7 @@ class SegmentPoints:
     def __len__(self):
         return self.xyz_points.shape[0]
 
-class SingleTrace:
+class SingleTrace(AbstractTrace):
     """
     Represents a singular wire trace on a PCB.
 
@@ -35,9 +37,8 @@ class SingleTrace:
     using the more general Trace class.
     """
     def __init__(self, xy_points: list[tuple[float, float]], segments: list[tuple[int, int]], shape: PipeShape):
-        self.xy_points = xy_points
+        super().__init__(xy_points, shape)
         self.segments = segments
-        self.shape = shape
         self.segment_vertices: dict[int, SegmentPoints] = {}
         """ Dictionary from segment index to points. """
 
@@ -52,6 +53,8 @@ class SingleTrace:
     def get_setment_angle(self, segment: tuple[int, int]) -> float:
         pa, pb = self.xy_points[segment[0]], self.xy_points[segment[1]]
         ang = math.atan2(pb[1] - pa[1], pb[0] - pa[0])
+        if ang < 0:
+            ang = np.pi * 2 + ang
         return ang
 
     def check_segments_overlap(self):
@@ -155,7 +158,7 @@ class SingleTrace:
             quad.GetPointIds().SetId(3, pb0+i)
             vtk_cells.InsertNextCell(quad)
     
-    def inc_vtk_indices(self, start: int, cnt: int):
+    def inc_vtk_indicies(self, start: int, cnt: int):
         for segment_points in self.segment_vertices.values():
             segment_points.inc_vtk_indicies(start, cnt)
 
@@ -179,7 +182,7 @@ class SingleTrace:
             vertices = self.segment_vertices[xy_idx]
             point_id_0 = vertices.vtk_indices[0]
             new_vtk_points = self.shape.add_vtk_cells(polydata, point_id_0)
-            self.inc_vtk_indices(point_id_0 + len(vertices), len(new_vtk_points))
+            self.inc_vtk_indicies(point_id_0 + len(vertices), len(new_vtk_points))
             for new_vtk_id in new_vtk_points:
                 xyz_point = list(vtk_points.GetPoint(new_vtk_id))
                 vertices.xyz_points = np.concat((vertices.xyz_points, np.array([xyz_point])), axis=0)

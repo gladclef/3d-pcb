@@ -25,8 +25,16 @@ class PipeShape:
         self.symetric_about_z = symetric_about_z
         self._xz_pointz = xz_pointz
         self.xz_pointz = self.normalize_points()
+    
+    @property
+    def diameter(self) -> float:
+        xz_points = self.normalize_points()
+        xs = [p[0] for p in xz_points]
+        xmin, xmax = np.min(xs), np.max(xs)
+        return xmax - xmin
 
     def normalize_points(self) -> list[list[float]]:
+        """ Returns the actual xz points of the shape, with properties applied. """
         ret = copy.deepcopy(self._xz_pointz)
 
         # add new points, reflected about the x axis
