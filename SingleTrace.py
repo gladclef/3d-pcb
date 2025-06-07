@@ -9,7 +9,9 @@ from vtkbool import vtkBool
 
 from AbstractTrace import AbstractTrace
 from AbstractVtkPointTracker import AbstractVtkPointTracker as PntInc
+import geometry as geo
 from PipeShape import PipeShape
+from Segment import Segment
 import vtk_tools as vt
 
 class SegmentPoints(PntInc):
@@ -36,26 +38,21 @@ class SingleTrace(AbstractTrace):
     junctions they should be built up of multiple SingleTrace objects
     using the more general Trace class.
     """
-    def __init__(self, xy_points: list[tuple[float, float]], segments: list[tuple[int, int]], shape: PipeShape):
+    def __init__(self, xy_points: list[tuple[float, float]], segments: list[tuple[int, int]] | list[Segment], shape: PipeShape):
         super().__init__(xy_points, shape)
-        self.segments = segments
+        self.segments = [(s if isinstance(s, Segment) else Segment(self, s)) for s in segments]
+        print(repr(self.segments))
         self.segment_vertices: dict[int, SegmentPoints] = {}
         """ Dictionary from segment index to points. """
 
-        self.check_segments_overlap()
+        self.check_segment_duplicates(self.segments)
         self.check_segments_overlap()
     
-    def check_segments_overlap(self):
-        segments_set = set(self.segments)
-        if len(self.segments) != len(segments_set):
-            raise ValueError(f"Error in SingleTrace.check_segments_overlap(): there are {len(segments_set)} non-duplicate segments out of {len(self.segments)} total segments.")
-
-    def get_setment_angle(self, segment: tuple[int, int]) -> float:
-        pa, pb = self.xy_points[segment[0]], self.xy_points[segment[1]]
-        ang = math.atan2(pb[1] - pa[1], pb[0] - pa[0])
-        if ang < 0:
-            ang = np.pi * 2 + ang
-        return ang
+    def check_segment_duplicates(self, segments: list[Segment]):
+        segment_tuples = [s.xy_point_indicies for s in segments]
+        segments_set = set(segment_tuples)
+        if len(segment_tuples) != len(segments_set):
+            raise ValueError(f"Error in SingleTrace.check_segment_duplicates(): there are {len(segments_set)} non-duplicate segments out of {len(segments)} total segments.")
 
     def check_segments_overlap(self):
         for e1idx, segment1 in enumerate(self.segments):
@@ -63,38 +60,24 @@ class SingleTrace(AbstractTrace):
                 if e1idx == e2idx:
                     # don't check for self-segment intersections
                     continue
-                if segment1[0] == segment2[0] or segment1[0] == segment2[1] or segment1[1] == segment2[0] or segment1[1] == segment2[1]:
+
+                if segment1.xy0 == segment2.xy0 or \
+                    segment1.xy0 == segment2.xy1 or \
+                    segment1.xy1 == segment2.xy0 or \
+                    segment1.xy1 == segment2.xy1:
                     # don't check for intersections with segments that share one of the end points
                     continue
 
                 # check if these segments are parallel
-                ang1, ang2 = self.get_setment_angle(segment1), self.get_setment_angle(segment2)
-                if abs(ang1 - ang2) < 0.001:
+                angle_diff = abs(segment1.angle - segment2.angle)
+                if angle_diff < 0.001 or 2*np.pi - angle_diff < 0.001:
                     continue
-
-                # check if these segments overlap
-                def line_intersection(p0, p1, p2, p3):
-                    s1_x = p1[0] - p0[0]
-                    s1_y = p1[1] - p0[1]
-                    s2_x = p3[0] - p2[0]
-                    s2_y = p3[1] - p2[1]
-
-                    s = (-s1_y * (p0[0] - p2[0]) + s1_x * (p0[1] - p2[1])) / (-s2_x * s1_y + s2_y * s1_x)
-                    t = ( s2_x * (p0[1] - p2[1]) - s2_y * (p0[0] - p2[0])) / (-s2_x * s1_y + s2_y * s1_x)
-
-                    if s >= 0 and s <= 1 and t >= 0 and t <= 1:
-                        # Collision detected
-                        i_x = p0[0] + (t * s1_x)
-                        i_y = p0[1] + (t * s1_y)
-                        return True, i_x, i_y
-
-                    return False, None, None
 
                 p1a, p1b = self.xy_points[segment1[0]], self.xy_points[segment1[1]]
                 p2a, p2b = self.xy_points[segment2[0]], self.xy_points[segment2[1]]
-                intersection, i_x, i_y = line_intersection(p1a, p1b, p2a, p2b)
-                if intersection:
-                    raise ValueError(f"Error in SingleTrace.check_segments_overlap(): segments {segment1} (a={p1a}, b={p1b}) and {segment2} (a={p2a}, b={p2b}) overlap at [{i_x}, {i_y}].")
+                intersection = geo.line_segments_intersection((p1a, p1b), (p2a, p2b))
+                if intersection is not None:
+                    raise ValueError(f"Error in SingleTrace.check_segments_overlap(): segments {segment1} (a={p1a}, b={p1b}) and {segment2} (a={p2a}, b={p2b}) overlap at [{intersection}].")
 
     def get_segment_vertices(self, xy_point: tuple[float, float], angle: float, top_or_bottom='top') -> np.ndarray:
         """ Get the vertices for the end-cap of a given trace segment, at the given point in the xy plane.

@@ -16,8 +16,3 @@ class AbstractTrace(PntInc, ABC):
     @abstractmethod
     def to_vtk(self) -> vtk.vtkPolyData:
         raise NotImplementedError
-    
-    @abstractmethod
-    def get_setment_angle(self, segment: tuple[int, int]) -> float:
-        """ Get the angle that the given segment runs at, from 0 to 2pi """
-        raise NotImplementedError
