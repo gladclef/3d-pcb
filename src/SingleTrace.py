@@ -41,7 +41,6 @@ class SingleTrace(AbstractTrace):
     def __init__(self, xy_points: list[tuple[float, float]], segments: list[tuple[int, int]] | list[Segment], shape: PipeShape):
         super().__init__(xy_points, shape)
         self.segments = [(s if isinstance(s, Segment) else Segment(self, s)) for s in segments]
-        print(repr(self.segments))
         self.segment_vertices: dict[int, SegmentPoints] = {}
         """ Dictionary from segment index to points. """
 

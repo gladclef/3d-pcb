@@ -18,6 +18,10 @@ class Segment:
         return self.parent.xy_points[self.xy_point_indicies[1]]
     
     @property
+    def xy_points(self) -> tuple[tuple[float, float], tuple[float, float]]:
+        return self.xy0, self.xy1
+    
+    @property
     def x0(self) -> float:
         return self.xy0[0]
     
@@ -43,7 +47,7 @@ class Segment:
 
     @property
     def angle(self) -> float:
-        return geo.line_segment_angle(self.xy0, self.xy1)
+        return geo.line_angle(self.xy_points)
     
     @property
     def length(self) -> float:

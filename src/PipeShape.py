@@ -32,6 +32,10 @@ class PipeShape:
         xs = [p[0] for p in xz_points]
         xmin, xmax = np.min(xs), np.max(xs)
         return xmax - xmin
+    
+    @property
+    def radius(self) -> float:
+        return self.diameter / 2
 
     def normalize_points(self) -> list[list[float]]:
         """ Returns the actual xz points of the shape, with properties applied. """
