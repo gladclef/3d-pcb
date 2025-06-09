@@ -2,10 +2,19 @@ import math
 
 import numpy as np
 import geometry as geo
-from AbstractTrace import AbstractTrace
+from AbstractPath import AbstractPath
 
 class Segment:
-    def __init__(self, parent: AbstractTrace, xy_point_indicies: tuple[int, int]):
+    """ Represents a line segment. """
+    def __init__(self, parent: AbstractPath, xy_point_indicies: tuple[int, int]):
+        """
+        Parameters
+        ----------
+        parent : AbstractPath
+            The path that contains the xy_points referenced by xy_point_indicies.
+        xy_point_indicies : tuple[int, int]
+            Indicies into the parent's xy_points that defines this line segment.
+        """
         self.parent = parent
         self.xy_point_indicies = tuple(xy_point_indicies)
 

@@ -39,10 +39,9 @@ class SingleTrace(AbstractTrace):
     using the more general Trace class.
     """
     def __init__(self, xy_points: list[tuple[float, float]], segments: list[tuple[int, int]] | list[Segment], shape: PipeShape):
-        super().__init__(xy_points, shape)
-        self.segments = [(s if isinstance(s, Segment) else Segment(self, s)) for s in segments]
-        self.segment_vertices: dict[int, SegmentPoints] = {}
-        """ Dictionary from segment index to points. """
+        super().__init__(xy_points, segments, shape)
+        self.segment_vtk_vertices: dict[int, SegmentPoints] = {}
+        """ Dictionary from segment index to vtk points. """
 
         self.check_segment_duplicates(self.segments)
         self.check_segments_overlap()
@@ -78,7 +77,7 @@ class SingleTrace(AbstractTrace):
                 if intersection is not None:
                     raise ValueError(f"Error in SingleTrace.check_segments_overlap(): segments {segment1} (a={p1a}, b={p1b}) and {segment2} (a={p2a}, b={p2b}) overlap at [{intersection}].")
 
-    def get_segment_vertices(self, xy_point: tuple[float, float], angle: float, top_or_bottom='top') -> np.ndarray:
+    def get_segment_vtk_vertices(self, xy_point: tuple[float, float], angle: float, top_or_bottom='top') -> np.ndarray:
         """ Get the vertices for the end-cap of a given trace segment, at the given point in the xy plane.
 
         Parameters
@@ -112,12 +111,12 @@ class SingleTrace(AbstractTrace):
         angle = self.get_setment_angle(segment)
 
         # get the vertices at either end of the trace segment
-        if xy_idx_a not in self.segment_vertices:
-            self.segment_vertices[xy_idx_a] = SegmentPoints(self.get_segment_vertices(xy_a, angle))
-        if xy_idx_b not in self.segment_vertices:
-            self.segment_vertices[xy_idx_b] = SegmentPoints(self.get_segment_vertices(xy_b, angle))
-        va = self.segment_vertices[xy_idx_a]
-        vb = self.segment_vertices[xy_idx_b]
+        if xy_idx_a not in self.segment_vtk_vertices:
+            self.segment_vtk_vertices[xy_idx_a] = SegmentPoints(self.get_segment_vtk_vertices(xy_a, angle))
+        if xy_idx_b not in self.segment_vtk_vertices:
+            self.segment_vtk_vertices[xy_idx_b] = SegmentPoints(self.get_segment_vtk_vertices(xy_b, angle))
+        va = self.segment_vtk_vertices[xy_idx_a]
+        vb = self.segment_vtk_vertices[xy_idx_b]
 
         # Add to vtk points
         for verticies in [va, vb]:
@@ -141,7 +140,7 @@ class SingleTrace(AbstractTrace):
             vtk_cells.InsertNextCell(quad)
     
     def inc_vtk_indicies(self, start: int, cnt: int):
-        for segment_points in self.segment_vertices.values():
+        for segment_points in self.segment_vtk_vertices.values():
             segment_points.inc_vtk_indicies(start, cnt)
 
     def to_vtk(self):
@@ -159,9 +158,9 @@ class SingleTrace(AbstractTrace):
             
         # Close the ends
         xy_idx_a = 0
-        xy_idx_b = max(list(self.segment_vertices.keys()))
+        xy_idx_b = max(list(self.segment_vtk_vertices.keys()))
         for xy_idx in [xy_idx_a, xy_idx_b]:
-            vertices = self.segment_vertices[xy_idx]
+            vertices = self.segment_vtk_vertices[xy_idx]
             point_id_0 = vertices.vtk_indices[0]
             new_vtk_points = self.shape.add_vtk_cells(polydata, point_id_0)
             self.inc_vtk_indicies(point_id_0 + len(vertices), len(new_vtk_points))

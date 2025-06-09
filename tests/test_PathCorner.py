@@ -8,10 +8,10 @@ from scipy.spatial.transform import Rotation
 
 from PipeShape import PipeBasicBox
 from SingleTrace import SingleTrace
-from TraceCorner import TraceCorner
+from PathCorner import PathCorner
 from units import *
 
-class TestTraceCorner(unittest.TestCase):
+class TestPathCorner(unittest.TestCase):
     def _tst_arc_center(self, xy_points: list[tuple[float, float]], expected_centers: list[tuple[float, float]], debug=False):
         xy_points_original = copy.deepcopy(xy_points)
         expected_centers_original = copy.deepcopy(expected_centers)
@@ -50,7 +50,7 @@ class TestTraceCorner(unittest.TestCase):
                 ]
                 shape = PipeBasicBox(awg2mm(26))
                 trace = SingleTrace(xy_points, segments, shape)
-                corner = TraceCorner(trace, trace.segments, 1)
+                corner = PathCorner(trace, trace.segments, 1)
                 corner.debug = debug
 
                 angle_diff, mid_angle, arc_length, arc_center = corner.get_arc_properties()
@@ -130,7 +130,7 @@ class TestTraceCorner(unittest.TestCase):
 
     def test_center_line_points_regression(self):
         """ Check that the values we got before are the same as the values now. """
-        with open(os.path.join(os.path.dirname(__file__), "test_TraceCorners_regression_vals.json"), "r") as fin:
+        with open(os.path.join(os.path.dirname(__file__), "test_PathCorners_regression_vals.json"), "r") as fin:
             regression_values = json.load(fin)
 
         for reg_val in regression_values:
@@ -154,7 +154,7 @@ class TestTraceCorner(unittest.TestCase):
             ]
             shape = PipeBasicBox(awg2mm(26))
             trace = SingleTrace(xy_points, segments, shape)
-            corner = TraceCorner(trace, trace.segments, 1)
+            corner = PathCorner(trace, trace.segments, 1)
 
             for i, clp in enumerate(corner.get_center_line_points()):
                 (act_x, act_y), act_rad = clp
