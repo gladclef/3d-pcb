@@ -1,16 +1,16 @@
 import numpy as np
 import vtk
 
-from AbstractPath import AbstractPath
+from Path import Path
 import geometry as geo
 from Segment import Segment
 
 class PathCorner:
-    def __init__(self, parent: AbstractPath, segments: tuple[Segment, Segment], bend_radius: float):
+    def __init__(self, parent: Path, segments: tuple[Segment, Segment], bend_radius: float):
         """
         Parameters
         ----------
-        parent : AbstractPath
+        parent : Path
             The parent instance that contains this instance.
         segments : tuple[Segment, Segment]
             The two segments that this corner is found on. They should

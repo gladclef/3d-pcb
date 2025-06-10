@@ -1,6 +1,9 @@
-from abc import ABC
+from typing import TYPE_CHECKING
 
-class AbstractPath(ABC):
+if TYPE_CHECKING:
+    from Segment import Segment
+
+class Path:
     """
     Represents a 2D path in the XY plane.
 
@@ -25,6 +28,12 @@ class AbstractPath(ABC):
     @property
     def segments(self):
         return [s[1] for s in self._xypntindicies_segments]
+    
+    def _build_segment(self, segment: tuple[int, int]) -> "Segment":
+        # import here to avoid cyclic imports
+        from Segment import Segment
+
+        return Segment(self, segment)
 
     def _build_segments(self, segments: list[tuple[int, int]] | list["Segment"]):
         """ Inserts the given segments into self._segments. Any segments not in this list are removed. """
@@ -32,7 +41,7 @@ class AbstractPath(ABC):
         from Segment import Segment
 
         # normalize input
-        segments: list[Segment] = [(s if isinstance(s, Segment) else Segment(self, s)) for s in segments]
+        segments: list[Segment] = [(s if isinstance(s, Segment) else self._build_segment(s)) for s in segments]
 
         # Get the point indicies that exist currently.
         # Any that aren't found during insertion will be removed.
