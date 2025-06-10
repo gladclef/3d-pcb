@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import numpy.testing as npt
 
-from geometry import *
+from Geometry.geometry_tools import *
 
 class TestGeometry(unittest.TestCase):
     def test_distance_along_line(self):

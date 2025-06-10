@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from Segment import Segment
+    from Geometry.Segment import Segment
 
 class Path:
     """
@@ -11,7 +11,7 @@ class Path:
     """
     def __init__(self, xy_points: list[tuple[float, float]], segments: list[tuple[int, int]] | list["Segment"]):
         # import here to avoid cyclic imports
-        from Segment import Segment
+        from Geometry.Segment import Segment
 
         # normalize input
         xy_points = [tuple(ab) for ab in xy_points]
@@ -31,14 +31,14 @@ class Path:
     
     def _build_segment(self, segment: tuple[int, int]) -> "Segment":
         # import here to avoid cyclic imports
-        from Segment import Segment
+        from Geometry.Segment import Segment
 
         return Segment(self, segment)
 
     def _build_segments(self, segments: list[tuple[int, int]] | list["Segment"]):
         """ Inserts the given segments into self._segments. Any segments not in this list are removed. """
         # import here to avoid cyclic imports
-        from Segment import Segment
+        from Geometry.Segment import Segment
 
         # normalize input
         segments: list[Segment] = [(s if isinstance(s, Segment) else self._build_segment(s)) for s in segments]

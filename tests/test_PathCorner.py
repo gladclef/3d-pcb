@@ -6,10 +6,10 @@ import unittest
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from PipeShape import PipeBasicBox
-from SingleTrace import SingleTrace
-from PathCorner import PathCorner
-from units import *
+from Trace.PipeShape import PipeBasicBox
+from Trace.SingleTrace import SingleTrace
+from Geometry.PathCorner import PathCorner
+from tool.units import *
 
 class TestPathCorner(unittest.TestCase):
     def _tst_arc_center(self, xy_points: list[tuple[float, float]], expected_centers: list[tuple[float, float]], debug=False):

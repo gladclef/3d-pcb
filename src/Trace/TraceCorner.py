@@ -1,11 +1,11 @@
 import numpy as np
 import vtk
 
-from AbstractTrace import AbstractTrace
-from AbstractVtkPointTracker import AbstractVtkPointTracker as PntInc
-import geometry as geo
-from PathCorner import PathCorner
-from Segment import Segment
+from Trace.AbstractTrace import AbstractTrace
+from Trace.AbstractVtkPointTracker import AbstractVtkPointTracker as PntInc
+import Geometry.geometry_tools as geo
+from Geometry.PathCorner import PathCorner
+from Geometry.Segment import Segment
 
 class TraceCorner(PathCorner, PntInc):
     def __init__(self, parent: AbstractTrace, segments: tuple[Segment, Segment], bend_radius: float):

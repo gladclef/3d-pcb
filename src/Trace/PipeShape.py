@@ -5,8 +5,8 @@ import numpy as np
 import vtk
 from vtk.util import numpy_support # type: ignore
 
-from units import *
-import vtk_tools as vt
+from tool.units import *
+import tool.vtk_tools as vt
 
 BREADBOARD_SPACING=in2mm(0.1)
 NOZZLE_DIAMETER=0.4

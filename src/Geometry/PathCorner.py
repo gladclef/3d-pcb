@@ -1,9 +1,9 @@
 import numpy as np
 import vtk
 
-from Path import Path
-import geometry as geo
-from Segment import Segment
+from Geometry.Path import Path
+import Geometry.geometry_tools as geo
+from Geometry.Segment import Segment
 
 class PathCorner:
     def __init__(self, parent: Path, segments: tuple[Segment, Segment], bend_radius: float):
@@ -280,9 +280,9 @@ if __name__ == "__main__":
 
     import matplotlib.pyplot as plt
 
-    from SingleTrace import SingleTrace
-    from PipeShape import PipeBasicBox
-    from units import *
+    from Trace.SingleTrace import SingleTrace
+    from Trace.PipeShape import PipeBasicBox
+    from tool.units import *
 
     vidframes_out = None #open("output/renders/input.txt", "w")
     unittests_out = open("tests/test_PathCorners_regression_vals.json", "w")

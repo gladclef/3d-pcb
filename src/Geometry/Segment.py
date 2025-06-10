@@ -1,8 +1,8 @@
 import math
 
 import numpy as np
-import geometry as geo
-from Path import Path
+import Geometry.geometry_tools as geo
+from Geometry.Path import Path
 
 class Segment:
     """ Represents a line segment. """

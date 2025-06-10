@@ -2,10 +2,10 @@ from abc import ABC, abstractmethod
 
 import vtk
 
-from AbstractVtkPointTracker import AbstractVtkPointTracker as PntInc
-from Path import Path
-from PipeShape import PipeShape
-from Segment import Segment
+from Trace.AbstractVtkPointTracker import AbstractVtkPointTracker as PntInc
+from Geometry.Path import Path
+from Trace.PipeShape import PipeShape
+from Geometry.Segment import Segment
 
 class AbstractTrace(Path, PntInc, ABC):
     """

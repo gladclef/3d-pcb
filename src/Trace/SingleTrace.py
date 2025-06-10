@@ -7,12 +7,12 @@ import vtk
 from vtk.util import numpy_support # type: ignore
 from vtkbool import vtkBool
 
-from AbstractTrace import AbstractTrace
-from AbstractVtkPointTracker import AbstractVtkPointTracker as PntInc
-import geometry as geo
-from PipeShape import PipeShape
-from Segment import Segment
-import vtk_tools as vt
+from Trace.AbstractTrace import AbstractTrace
+from Trace.AbstractVtkPointTracker import AbstractVtkPointTracker as PntInc
+import Geometry.geometry_tools as geo
+from Trace.PipeShape import PipeShape
+from Geometry.Segment import Segment
+import tool.vtk_tools as vt
 
 class SegmentPoints(PntInc):
     def __init__(self, xyz_points: np.ndarray, vtk_indices: list[int] = None):
@@ -175,8 +175,8 @@ class SingleTrace(AbstractTrace):
         return polydata
 
 if __name__ == "__main__":
-    from PipeShape import PipeBasicBox
-    from units import *
+    from Trace.PipeShape import PipeBasicBox
+    from tool.units import *
 
     trace_points = [
         (0, 0),
