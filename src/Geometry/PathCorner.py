@@ -1,28 +1,29 @@
 import numpy as np
 import vtk
 
+from Geometry.Line import Line
 from Geometry.Path import Path
 import Geometry.geometry_tools as geo
-from Geometry.Segment import Segment
+from Geometry.LineSegment import LineSegment
 
 class PathCorner:
-    def __init__(self, parent: Path, segments: tuple[Segment, Segment], bend_radius: float):
+    def __init__(self, parent: Path, segments: tuple[LineSegment, LineSegment], bend_radius: float):
         """
         Parameters
         ----------
         parent : Path
             The parent instance that contains this instance.
-        segments : tuple[Segment, Segment]
+        segments : tuple[LineSegment, LineSegment]
             The two segments that this corner is found on. They should
             share one of the end points.
         bend_radius : float
             How large of a radius the bend should be.
         """
         # verify that the segments share an end point, and that the shared point is in the middle
-        if segments[0].xy1 == segments[1].xy0:
-            if segments[1].xy1 == segments[0].xy0:
+        if segments[0].xy2 == segments[1].xy1:
+            if segments[0].xy1 == segments[1].xy2:
                 raise ValueError("The segments must share only one common end point.")
-        elif segments[1].xy1 == segments[0].xy0:
+        elif segments[0].xy1 == segments[1].xy2:
             segments = [segments[1], segments[0]]
         else:
             raise ValueError("The segments must share a common end point.")
@@ -55,86 +56,69 @@ class PathCorner:
             4. adjust both lines towards each other to go through the closer points
             5. find the intersection of the adjusted lines
         """
-        debug = True
-        a0, a1 = self.segments[0].xy0, self.segments[0].xy1
-        b0, b1 = self.segments[1].xy0, self.segments[1].xy1
+        seg1 = self.segments[0]
+        seg2 = self.segments[1]
+        line1 = Line.from_two_points(seg1.xy1, seg1.xy2)
+        line2 = Line.from_two_points(seg2.xy1, seg2.xy2)
 
         # check that the middle point is shared
-        if a1 != b0:
-            raise ValueError("Error in PathCorner.get_arc_seg_intersections(): " + f"the midpoint between the segments ({a0},{a1}) and ({b0},{b1}) isn't shared! " + f"{a1} != {b0}")
+        if seg1.xy2 != seg2.xy1:
+            raise ValueError("Error in PathCorner.get_arc_seg_intersections(): " + f"the midpoint between the segments ({seg1.xy2}) and ({seg2.xy1}) isn't shared!")
 
         # don't search for the arc segment intersection of two segments with the same(ish) slope
-        angle_a = geo.line_angle((a0, a1))
-        angle_b = geo.line_angle((b0, b1))
+        angle_a = line1.angle
+        angle_b = line2.angle
         angle_diff = geo.normalize_angle(angle_b - angle_a)
         if self.debug:
             print(f"{angle_diff=}")
-        if angle_diff < 1/1e6 or angle_diff > (2*np.pi - 1/1e6):
-            tangent = geo.get_tangent_line((a0, a1), a1)
-            return geo.distance_along_line(tangent, self.bend_radius, a1)
+        if angle_diff < geo.ZERO_THRESH or angle_diff > (2*np.pi - geo.ZERO_THRESH):
+            tangent = line1.get_tangent_line(seg1.xy2)
+            return tangent.distance_along_line(self.bend_radius, seg1.xy2)
 
         # 2. get the bend radius distance points away from each line
-        def distance_along_tangent(line: tuple[tuple[float, float], tuple[float, float]], from_point: tuple[float, float]) -> tuple[tuple[float, float], tuple[float, float]]:
-            tangent = geo.get_tangent_line(line, from_point)
+        def distance_along_tangent(line: Line, from_point: tuple[float, float]) -> tuple[tuple[float, float], tuple[float, float]]:
+            tangent = line.get_tangent_line(from_point)
             if self.debug:
-                line_slope_intercept = geo.line_two_points_to_slope_intercept(line)
-                tangent_slope_intercept = geo.line_two_points_to_slope_intercept(tangent)
+                line_slope_intercept = line.slope, line.y_intercept
+                tangent_slope_intercept = tangent.slope, tangent.y_intercept
                 print(f"{line_slope_intercept=}\n{tangent_slope_intercept=}")
-            ret0 = geo.distance_along_line((tangent[0], tangent[1]), self.bend_radius, from_point)
-            ret1 = geo.distance_along_line((tangent[1], tangent[0]), self.bend_radius, from_point)
+            ret0 = tangent.distance_along_line(self.bend_radius, from_point)
+            ret1 = tangent.reversed().distance_along_line(self.bend_radius, from_point)
             return ret0, ret1
-        pnts_dist_adj_a = distance_along_tangent((a0, a1), a1)
+        pnts_dist_adj_a = distance_along_tangent(line1, seg1.xy2)
         if self.debug:
             print(f"{pnts_dist_adj_a=}")
-        pnts_dist_adj_b = distance_along_tangent((b0, b1), a1)
+        pnts_dist_adj_b = distance_along_tangent(line2, seg1.xy2)
         if self.debug:
             print(f"{pnts_dist_adj_b=}")
 
         # 3. choose the point for each line that is in the same direction as the other line
-        def get_point_on_same_side(line: tuple[tuple[float, float], tuple[float, float]],
+        def get_point_on_same_side(line: Line,
                                    ref_point: tuple[float, float],
                                    two_points: tuple[tuple[float, float], tuple[float, float]]) -> tuple[float, float]:
-            if geo.is_point_on_right(line, two_points[0]):
-                if geo.is_point_on_right(line, ref_point):
+            if line.is_point_on_right(two_points[0]):
+                if line.is_point_on_right(ref_point):
                     return two_points[0]
                 else:
                     return two_points[1]
             else: # point 0 is on the left
-                if not geo.is_point_on_right(line, ref_point):
+                if not line.is_point_on_right(ref_point):
                     return two_points[0]
                 else:
                     return two_points[1]
-        pnt_dist_adj_a = get_point_on_same_side((a0, a1), b1, pnts_dist_adj_a)
-        pnt_dist_adj_b = get_point_on_same_side((b1, b0), a0, pnts_dist_adj_b)
+        pnt_dist_adj_a = get_point_on_same_side(line1, seg2.xy2, pnts_dist_adj_a)
+        pnt_dist_adj_b = get_point_on_same_side(line2, seg1.xy1, pnts_dist_adj_b)
         if self.debug:
             print(f"{pnt_dist_adj_a=}\n{pnt_dist_adj_b=}")
 
         # 4. adjust both lines towards each other to go through the closer points
-        def get_line_through_point(parallel_line: tuple[tuple[float, float], tuple[float, float]], point: tuple[float, float]) -> tuple[tuple[float, float], tuple[float, float]]:
-            (x1, y1), (x2, y2) = parallel_line
-            slope, _ = geo.line_two_points_to_slope_intercept(parallel_line)
-
-            # check for infinity or zero
-            if abs(slope) >= geo.INF_THRESH:
-                if y2 > y1:
-                    return point, (point[0], point[1] + 10)
-                else:
-                    return point, (point[0], point[1] - 10)
-            elif abs(slope) <= geo.ZERO_THRESH:
-                if x2 > x1:
-                    return point, (point[0] + 10, point[1])
-                else:
-                    return point, (point[0] - 10, point[1])
-            
-            # get the new line
-            return point, (point[0]+10, slope*10 + point[1])
-        adj_line_a = get_line_through_point((a0, a1), pnt_dist_adj_a)
-        adj_line_b = get_line_through_point((b0, b1), pnt_dist_adj_b)
+        adj_line_a = Line.from_angle_point(line1.angle, pnt_dist_adj_a)
+        adj_line_b = Line.from_angle_point(line2.angle, pnt_dist_adj_b)
         if self.debug:
             print(f"{adj_line_a=}\n{adj_line_b=}")
 
         # 5. find the intersection of the adjusted lines
-        adj_lines_intersection = geo.lines_intersection(adj_line_a, adj_line_b)
+        adj_lines_intersection = adj_line_a.intersection(adj_line_b)
         if self.debug:
             print(f"{adj_lines_intersection=}")
 
@@ -160,8 +144,8 @@ class PathCorner:
         """
 
         # Get some segment properties
-        angle_a = geo.line_angle(self.segments[0].xy_points)
-        angle_b = geo.line_angle(self.segments[1].xy_points)
+        angle_a = self.segments[0].angle
+        angle_b = self.segments[1].angle
         if self.debug:
             print(f"{angle_a=}\n{angle_b=}")
 
@@ -211,22 +195,21 @@ class PathCorner:
         nincrements = max(nincrements, 1)
 
         # Find the tangent from the arc center to the path corner (aka the end of the first segment).
-        seg_tangent = geo.get_tangent_line(self.segments[0].xy_points, self.segments[0].xy1)
-        tan_tst_pnt = geo.distance_along_line(seg_tangent, 1.0, self.segments[0].xy1)
-        if geo.is_point_on_right(self.segments[0].xy_points, arc_center):
-            if geo.is_point_on_right(self.segments[0].xy_points, tan_tst_pnt):
-                seg_tangent = (seg_tangent[1], seg_tangent[0])
-                tan_tst_pnt2 = geo.distance_along_line(seg_tangent, 1.0, self.segments[0].xy1)
-                assert not geo.is_point_on_right(self.segments[0].xy_points, tan_tst_pnt2)
+        seg_tangent = self.segments[0].get_tangent_line(self.segments[0].xy2)
+        tan_tst_pnt = seg_tangent.distance_along_line(1.0, self.segments[0].xy2)
+        if self.segments[0].is_point_on_right(arc_center):
+            if self.segments[0].is_point_on_right(tan_tst_pnt):
+                seg_tangent = seg_tangent.reversed()
+                tan_tst_pnt2 = seg_tangent.distance_along_line(1.0, self.segments[0].xy2)
+                assert not self.segments[0].is_point_on_right(tan_tst_pnt2)
         else:
-            if not geo.is_point_on_right(self.segments[0].xy_points, tan_tst_pnt):
-                seg_tangent = (seg_tangent[1], seg_tangent[0])
-                tan_tst_pnt2 = geo.distance_along_line(seg_tangent, 1.0, self.segments[0].xy1)
-                assert geo.is_point_on_right(self.segments[0].xy_points, tan_tst_pnt2)
+            if not self.segments[0].is_point_on_right(tan_tst_pnt):
+                seg_tangent = seg_tangent.reversed()
+                tan_tst_pnt2 = seg_tangent.distance_along_line(1.0, self.segments[0].xy2)
+                assert self.segments[0].is_point_on_right(tan_tst_pnt2)
 
         # Get the angle for the start of the first increment.
-        seg_tan_angle = geo.line_angle(seg_tangent)
-        first_tan_angle = seg_tan_angle
+        first_tan_angle = seg_tangent.angle
 
         # Build out the list of increments.
         first_angle = self.segments[0].angle
@@ -252,10 +235,10 @@ class PathCorner:
         fig, ax = plt.subplots(figsize=(10,10))
 
         # draw the segments
-        dx0, dy0 = self.segments[0].x1 - self.segments[0].x0, self.segments[0].y1 - self.segments[0].y0
-        ax.arrow(*self.segments[0].xy0, dx0, dy0, color="tab:blue")
-        dx1, dy1 = self.segments[1].x1 - self.segments[1].x0, self.segments[1].y1 - self.segments[1].y0
-        ax.arrow(*self.segments[1].xy0, dx1, dy1, color="tab:blue")
+        dx0, dy0 = self.segments[0].x2 - self.segments[0].x1, self.segments[0].y2 - self.segments[0].y1
+        ax.arrow(*self.segments[0].xy1, dx0, dy0, color="tab:blue")
+        dx1, dy1 = self.segments[1].x2 - self.segments[1].x1, self.segments[1].y2 - self.segments[1].y1
+        ax.arrow(*self.segments[1].xy1, dx1, dy1, color="tab:blue")
 
         # draw the center point
         ax.add_patch(plt.Circle(arc_center, self.bend_radius/10, color="tab:purple"))
@@ -284,8 +267,8 @@ if __name__ == "__main__":
     from Trace.PipeShape import PipeBasicBox
     from tool.units import *
 
-    vidframes_out = None #open("output/renders/input.txt", "w")
-    unittests_out = open("tests/test_PathCorners_regression_vals.json", "w")
+    vidframes_out = open("output/renders/input.txt", "w")
+    unittests_out = None #open("test/test_PathCorners_regression_vals.json", "w")
 
     if unittests_out is not None:
         unittests_out.write("[\n")

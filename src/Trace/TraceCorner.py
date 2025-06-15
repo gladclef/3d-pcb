@@ -5,16 +5,16 @@ from Trace.AbstractTrace import AbstractTrace
 from Trace.AbstractVtkPointTracker import AbstractVtkPointTracker as PntInc
 import Geometry.geometry_tools as geo
 from Geometry.PathCorner import PathCorner
-from Geometry.Segment import Segment
+from Geometry.LineSegment import LineSegment
 
 class TraceCorner(PathCorner, PntInc):
-    def __init__(self, parent: AbstractTrace, segments: tuple[Segment, Segment], bend_radius: float):
+    def __init__(self, parent: AbstractTrace, segments: tuple[LineSegment, LineSegment], bend_radius: float):
         """
         Parameters
         ----------
         parent : AbstractTrace
             The parent instance that contains this instance.
-        segments : tuple[Segment, Segment]
+        segments : tuple[LineSegment, LineSegment]
             The two segments that this corner is found on. They should
             share one of the end points.
         bend_radius : float
