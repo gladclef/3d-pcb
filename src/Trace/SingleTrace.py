@@ -25,7 +25,7 @@ class SingleTrace(AbstractTrace):
     junctions they should be built up of multiple SingleTrace objects
     using the more general Trace class.
     """
-    def __init__(self, xy_points: list[tuple[float, float]], segments: list[tuple[int, int]] | list[LineSegment], shape: PipeShape, bend_radius: float=1):
+    def __init__(self, xy_points: list[tuple[float, float]], segments: list[tuple[int, int]] | list[LineSegment], shape: PipeShape, bend_radius: float=1, allow_overlap=False):
         super().__init__(xy_points, segments, shape)
 
         self._xypnt_vtk_verticies: dict[int, VtkPointGroup] = {}
@@ -35,7 +35,8 @@ class SingleTrace(AbstractTrace):
         self.bend_radius = bend_radius
 
         self.check_segment_duplicates(self.segments)
-        self.check_segments_overlap()
+        if not allow_overlap:
+            self.check_segments_overlap()
     
     def check_segment_duplicates(self, segments: list[LineSegment]):
         segment_tuples = [(s.xy1, s.xy2) for s in segments]
@@ -184,6 +185,7 @@ if __name__ == "__main__":
     from Trace.PipeShape import PipeBasicBox
     from tool.units import *
 
+    # simple trace
     trace_points = [
         (0, 0),
         (1, 0),
@@ -194,7 +196,39 @@ if __name__ == "__main__":
         (1, 2)
     ]
 
-    test_trace = SingleTrace(trace_points, trace_edges, PipeBasicBox(awg2mm(26)))
+    # hello trace
+    trace_points = [
+        # h
+        (0, 0),
+        (1, 10),
+        (0, 10),
+        (0, 5),
+        (5, 5),
+        (5, 0),
+        # e
+        (12, 4),
+        (12, 5),
+        (7, 5),
+        (7, 0),
+        # l
+        (14, 0),
+        (15, 10),
+        (14, 10),
+        (15, 0),
+        # l
+        (21, 0),
+        (22, 10),
+        (21, 10),
+        (22, 0),
+        # o
+        (33, 0),
+        (33, 5),
+        (28, 5),
+        (28, 0)
+    ]
+    trace_edges = [(i, i+1) for i in range(len(trace_points)-1)]
+
+    test_trace = SingleTrace(trace_points, trace_edges, PipeBasicBox(awg2mm(26)), allow_overlap=True)
     vtk_test_trace = test_trace.to_vtk()
     print(f"{vtk_test_trace.GetNumberOfPoints()=}")
     vt.save_to_vtk(vtk_test_trace, "test_trace.vtk")

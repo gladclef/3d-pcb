@@ -128,5 +128,9 @@ class LineSegment(Line):
         
         return x, y
 
+    def reversed(self) -> "LineSegment":
+        # override parent method to return a line segment
+        return LineSegment(self.xy2, self.xy1)
+
     def __repr__(self):
         return f"LineSeg<{self.xy1}:{self.xy2}>"
