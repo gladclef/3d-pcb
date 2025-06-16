@@ -2,6 +2,7 @@ import copy
 import math
 
 import numpy as np
+from scipy.spatial.transform import Rotation
 import vtk
 from vtk.util import numpy_support # type: ignore
 
@@ -37,41 +38,41 @@ class PipeShape:
     def radius(self) -> float:
         return self.diameter / 2
 
-    def normalize_points(self) -> list[list[float]]:
+    def normalize_points(self) -> list[tuple[float, float]]:
         """ Returns the actual xz points of the shape, with properties applied. """
         ret = copy.deepcopy(self._xz_pointz)
 
         # add new points, reflected about the x axis
         if self.symetric_about_x:
-            new_points: list[list[float]] = []
+            new_points: list[tuple[float, float]] = []
             for pnt in reversed(ret):
-                pnt = [pnt[0], -pnt[1]]
+                pnt = (pnt[0], -pnt[1])
                 new_points.append(pnt)
             ret += new_points
             
         # add new points, reflected about the z axis
         if self.symetric_about_z:
-            new_points: list[list[float]] = []
+            new_points: list[tuple[float, float]] = []
             for pnt in reversed(ret):
-                pnt = [-pnt[0], pnt[1]]
+                pnt = (-pnt[0], pnt[1])
                 new_points.append(pnt)
             ret += new_points
 
         # Adjust the points so that the highest point is at z=0
         z_max = np.max([z for x, z in ret])
-        ret = [[x, z-z_max] for x, z in ret]
+        ret = [(x, z-z_max) for x, z in ret]
         
         z_max = np.max([z for x, z in ret])
         assert z_max == 0
 
         # Adjust the points so that the shape is centered around x=0
-        x_min = np.min([x for x, y in ret])
-        x_max = np.max([x for x, y in ret])
+        x_min = np.min([x for x, z in ret])
+        x_max = np.max([x for x, z in ret])
         x_offset = x_min + ((x_max - x_min) / 2)
-        ret = [[x-x_offset, y] for x, y in ret]
+        ret = [(x-x_offset, z) for x, z in ret]
         
-        x_min = np.min([x for x, y in ret])
-        x_max = np.max([x for x, y in ret])
+        x_min = np.min([x for x, z in ret])
+        x_max = np.max([x for x, z in ret])
         assert -x_min == x_max
 
         # # Reorder the points so that they are in polar angle order,
@@ -82,6 +83,26 @@ class PipeShape:
         
         return ret
     
+    def oriented_points(self, angle: float, translation: tuple[float, float]) -> list[tuple[float, float, float]]:
+        """
+        Returns a copy of the xz points of the shape,
+        with properties applied, and rotation and translation applied.
+        """
+        # get the cross section from the shape
+        xz_points = np.array(self.normalize_points())
+        xyz_points = np.array([[x, 0, z] for x, z in xz_points])
+        
+        # apply rotation and translation
+        r = Rotation.from_euler('z', angle+np.pi/2)
+        xyz_rotated: np.ndarray = r.apply(xyz_points)
+        xyz_translated: np.ndarray = xyz_rotated + np.array([translation[0], translation[1], 0])
+
+        ret: list[tuple[float, float, float]] = []
+        for xyz_idx in range(xyz_translated.shape[0]):
+            ret.append(tuple(xyz_translated[xyz_idx]))
+        
+        return ret
+
     def to_vtk(self, mode: str = None) -> vtk.vtkPolyData:
         # mirror and normalize
         xz_pointz = self.normalize_points()

@@ -48,6 +48,37 @@ def insert_points(polydata: vtk.vtkPolyData, insert_start_idx: int, values: tupl
             if pnt_id >= insert_start_idx:
                 vtk_cells.ReplaceCellPointAtId(cell_idx, pnt_idx, pnt_id+ninserts)
 
+def join_with_quads(polydata: vtk.vtkPolyData, a_points_idx: int, b_points_idx: int, num_points: int):
+    """
+    Join two groups A and B with equal numbers of verticies with quads.
+    This function is most useful for extruding a shape.
+
+    Parameters
+    ----------
+    polydata : vtk.vtkPolyData
+        The object containing the verticies.
+    a_points_idx : int
+        The starting vertex index for the A group.
+    b_points_idx : int
+        The starting vertex index for the B group.
+    num_points : int
+        How many verticies are in the A group. It is assumed that
+        the B group has the same number of verticies.
+    """
+    # vtk_points: vtk.vtkPoints = polydata.GetPoints()
+    vtk_cells: vtk.vtkCellArray = polydata.GetPolys()
+        
+    # build the sides along the length of the trace
+    for i in range(num_points):
+        j = 0 if i == num_points - 1 else i+1
+
+        quad = vtk.vtkQuad()
+        quad.GetPointIds().SetId(0, a_points_idx+i)
+        quad.GetPointIds().SetId(1, a_points_idx+j)
+        quad.GetPointIds().SetId(2, b_points_idx+j)
+        quad.GetPointIds().SetId(3, b_points_idx+i)
+        vtk_cells.InsertNextCell(quad)
+
 def triangulate_quads(polydata: vtk.vtkPolyData):
     """ Find all cells with 4 point ids and replace them with two cells with 3 ids each. """
     polys = polydata.GetPolys()
