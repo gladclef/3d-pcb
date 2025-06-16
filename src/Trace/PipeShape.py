@@ -104,6 +104,23 @@ class PipeShape:
         return polydata
 
     def add_vtk_cells(self, polydata: vtk.vtkPolyData, starting_point_id: int, mode="triangles") -> list[int]:
+        """
+        Adds cells to the given polydata.
+
+        Parameters
+        ----------
+        polydata : vtk.vtkPolyData
+            The VTK PolyData object to which cells will be added.
+        starting_point_id : int
+            The starting vtk point index for this instance's points.
+        mode : str, optional
+            The type of cells to add ("triangles" or "edges"), by default "triangles".
+
+        Returns
+        -------
+        list[int]
+            A list of any new vtk point indexes used for the new cells added.
+        """
         p0_id = starting_point_id
         npoints = len(self.normalize_points())
         vtk_points: vtk.vtkPoints = polydata.GetPoints()

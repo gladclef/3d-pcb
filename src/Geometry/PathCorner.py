@@ -1,3 +1,4 @@
+from functools import cache
 import numpy as np
 import vtk
 
@@ -167,6 +168,7 @@ class PathCorner:
 
         return angle_diff, mid_angle, arc_length, arc_center
 
+    @cache
     def get_center_line_points(self):
         """
         Get the points that define the path for the path corner.
@@ -182,7 +184,7 @@ class PathCorner:
 
         Returns
         -------
-        center_line_points: list[tuple[tuple[float, float], float]]
+        xypoint_angle_pairs: list[tuple[tuple[float, float], float]]
             Pairs of (xy, θ), one per point on the center line.
         """
         corner_increment_angle = np.deg2rad(5)
