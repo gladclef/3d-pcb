@@ -2,6 +2,8 @@ import math
 from typing import Union
 from Geometry.Line import Line
 
+import Geometry.geometry_tools as geo
+
 
 class LineSegment(Line):
     def __init__(self, pnt1: tuple[float, float], pnt2: tuple[float, float]):
@@ -83,16 +85,18 @@ class LineSegment(Line):
         y0 = min(self.y1, self.y2)
         x1 = max(self.x1, self.x2)
         y1 = max(self.y1, self.y2)
-        if (x < x0 or x > x1 or y < y0 or y > y1):
-            return None
+        for v1, v2 in [(x0, x), (x, x1), (y0, y), (y, y1)]:
+            if v1 > v2 and v1 - v2 > geo.ZERO_THRESH:
+                return None
 
         if isinstance(other, LineSegment):
             x2 = min(other.x1, other.x2)
             y2 = min(other.y1, other.y2)
             x3 = max(other.x1, other.x2)
             y3 = max(other.y1, other.y2)
-            if (x < x2 or x > x3 or y < y2 or y > y3):
-                return None
+            for v1, v2 in [(x2, x), (x, x3), (y2, y), (y, y3)]:
+                if v1 > v2 and v1 - v2 > geo.ZERO_THRESH:
+                    return None
         
         return x, y
 

@@ -210,6 +210,12 @@ class Line:
         is_on_left = (b[0] - a[0])*(c[1] - a[1]) - (b[1] - a[1])*(c[0] - a[0]) > 0
         return not is_on_left
 
+    def is_parallel_to(self, other: "Line") -> bool:
+        ang1, ang2 = self.angle, other.angle
+        if abs(ang1 - ang2) < 1/1e9 or abs(np.pi - abs(ang1 - ang2)) < 1/1e9:
+            return True
+        return False
+
     def intersection(self, other: "Line") -> tuple[float, float] | None:
         """ Get the intersection point of two lines.
         
@@ -219,13 +225,9 @@ class Line:
             The x,y intersection point, or None if the lines are parallel
         """
         # Don't check for intersection between two lines that are parallel
-        ang1, ang2 = self.angle, other.angle
-        if abs(ang1 - ang2) < 1/1e9 or 2*np.pi - abs(ang1 - ang2) < 1/1e9:
+        if self.is_parallel_to(other):
             return None
 
-        if abs(self.slope - other.slope) <= geo.ZERO_THRESH:
-            # should have been caught already
-            raise RuntimeError("In geometry.lines_intersection(): programmer error, " + "should not have encountered the case where self.slope == other.slope, " + f"but {self.slope=} and {other.slope=}")
         elif self.is_vertical:
             x = self.x_intercept
             y = other.slope*x + other.y_intercept

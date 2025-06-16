@@ -141,6 +141,26 @@ class TestLine(unittest.TestCase):
 
             self.assertAlmostEqual(l1.angle, l2.angle, places=5)
             self.assertAlmostEqual(l1.y_intercept, l2.y_intercept, places=5)
+    
+    def test_is_parallel_to(self):
+        si = Line.from_slope_intercept
+        ap = Line.from_angle_point
+        π = np.pi
+
+        self.assertFalse( si(0, 0).is_parallel_to(         si(np.inf, 0)    ) )
+        self.assertFalse( si(0, 2.3).is_parallel_to(       si(1, 4.9)       ) )
+        self.assertFalse( si(1, 2.3).is_parallel_to(       si(-1, 4.9)      ) )
+        self.assertFalse( si(-1, 2.3).is_parallel_to(      si(1, 4.9)       ) )
+
+        self.assertTrue(  si(0, 2.3).is_parallel_to(       si(0, 4.9)       ) )
+        self.assertTrue(  si(1, 2.3).is_parallel_to(       si(1, 4.9)       ) )
+        self.assertTrue(  si(-1, 2.3).is_parallel_to(      si(-1, 4.9)      ) )
+        self.assertTrue(  si(np.inf, 0).is_parallel_to(    si(-np.inf, 0)   ) )
+        self.assertTrue(  si(np.inf, 10).is_parallel_to(   si(np.inf, -5)   ) )
+        self.assertTrue(  si(-np.inf, 2.3).is_parallel_to( si(np.inf, 4.9)  ) )
+        self.assertTrue(  ap(π/4, (0,0)).is_parallel_to(   ap(π/4, (0,0))   ) )
+        self.assertTrue(  ap(π/4, (0,0)).is_parallel_to(   ap(5*π/4, (0,0)) ) )
+        self.assertTrue(  ap(5*π/4, (0,0)).is_parallel_to( ap(π/4, (0,0))   ) )
 
 if __name__ == '__main__':
     unittest.main()
