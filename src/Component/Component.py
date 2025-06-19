@@ -1,9 +1,9 @@
 import copy
 import re
 
+import matplotlib.axis as maxis
 import numpy as np
 
-from Component.Pin import Pin
 from Component.Shape import Shape
 from Component.Text import Text
 from FileIO.CadFileHelper import CadFileHelper
@@ -122,7 +122,7 @@ class Component:
         #     TEXT 0.25 -0.107087 0.0393701 180 0 SILKSCREEN_TOP "250" 0 0 0.122328 0.0667913
         #     SHEET "RefDes: R1, Value: 250"
 
-        helper = CadFileHelper(re.compile(r"COMPONENT.*"), re.compile(r"^(\$ENDCOMPONENTS)?$"))
+        helper = CadFileHelper(re.compile(r"COMPONENT.*"), re.compile(r"^(\$ENDCOMPONENTS)?$"), ignore_false_endings=True)
         pre_lines, component_lines, post_lines = helper.get_next_region(lines)
         if len(component_lines) == 0:
             return None, lines
@@ -153,7 +153,7 @@ class Component:
                 if shape_name:
                     shape_name = shape_name[0]
             elif line.startswith("TEXT"):
-                text, _ = Text.from_cad_file(line)
+                text, _ = Text.from_cad_file([line])
                 assert text is not None
                 texts.append(text)
             elif line.startswith("SHEET"):
@@ -173,6 +173,11 @@ class Component:
             component.assign_shape(shapes)
 
         return component, pre_lines + post_lines
+    
+    def draw(self, ax: maxis.Axis):
+        self.shape.draw(ax)
+        text_loc = self.texts[0].group_x_offset, self.texts[0].group_y_offset
+        ax.text(text_loc[0], text_loc[1], repr(self), color="white", fontsize=0.3)
 
     def __repr__(self) -> str:
         if len(self.texts) > 0:

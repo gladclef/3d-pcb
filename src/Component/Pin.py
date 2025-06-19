@@ -106,5 +106,5 @@ class Pin:
         x_offset = in2mm(float(x_offset))
         y_offset = in2mm(float(y_offset))
 
-        pin = Pin(pad_name, x_offset, y_offset, layer)
+        pin = cls(pad_name, x_offset, y_offset, layer)
         return pin, ret_lines

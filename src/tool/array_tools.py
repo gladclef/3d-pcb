@@ -57,7 +57,7 @@ def tuple_from_array(arr: np.ndarray | tuple, expected_lengths: int | list[int],
         return tvals, input_len, input_type
     else:
         return_vals = [0]*desired_len
-        for i in range(input_len):
+        for i in range(min(input_len, desired_len)):
             return_vals[i] = tvals[i]
         return tuple(return_vals), input_len, input_type
 
@@ -92,7 +92,7 @@ def retval_from_tuple(retval: np.ndarray | tuple, return_len: int, return_type: 
             retval = retval.transpose()
         input_len = retval.shape[0]
 
-    tvals = tuple_from_array(retval, input_len, return_len)
+    tvals, _, _ = tuple_from_array(retval, input_len, return_len)
 
     if return_type == "tuple":
         return tvals

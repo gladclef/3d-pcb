@@ -1,14 +1,47 @@
 import re
 
-
 class CadFileHelper:
-    """ Assistant class to help parse gencad files, such as those exported by KiCad. """
+    """
+    Assistant class to help parse gencad files, such as those exported by KiCad.
+    """
 
-    def __init__(self, start_tag: str | re.Pattern, end_tag: str | re.Pattern):
+    def __init__(self, start_tag: str | re.Pattern, end_tag: str | re.Pattern, ignore_false_endings=False):
+        """
+        Initialize the `CadFileHelper` instance.
+
+        Parameters
+        ----------
+        start_tag : str or re.Pattern
+            The starting tag or pattern to identify the beginning of a region.
+        end_tag : str or re.Pattern
+            The ending tag or pattern to identify the end of a region.
+        ignore_false_endings : bool, optional
+            Whether to ignore lines matching `end_tag` when not in a region. Default is False.
+        """
         self.start_tag = start_tag
+        """ The starting tag or pattern for identifying regions. """
         self.end_tag = end_tag
+        """ The ending tag or pattern for identifying regions. """
+        self.ignore_false_endings = ignore_false_endings
+        """ Whether to ignore lines matching `end_tag` when not in a region. """
 
-    def _matches(self, line: str, tag: str | re.Pattern):
+    def _matches(self, line: str, tag: str | re.Pattern) -> bool:
+        """
+        Check if the given line matches the specified tag or pattern.
+
+        Parameters
+        ----------
+        line : str
+            The line to check.
+        tag : str or re.Pattern
+            The tag or pattern to match against.
+
+        Returns
+        -------
+        bool
+            True if the line matches the tag, False otherwise.
+
+        """
         sline = line.strip()
 
         if isinstance(tag, str):
@@ -18,14 +51,43 @@ class CadFileHelper:
             match = tag.match(sline)
             return match is not None
 
-    def start_matches(self, line: str):
+    def start_matches(self, line: str) -> bool:
+        """
+        Check if the given line matches the start tag.
+
+        Parameters
+        ----------
+        line : str
+            The line to check.
+
+        Returns
+        -------
+        bool
+            True if the line matches the start tag, False otherwise.
+
+        """
         return self._matches(line, self.start_tag)
 
-    def end_matches(self, line: str):
+    def end_matches(self, line: str) -> bool:
+        """
+        Check if the given line matches the end tag.
+
+        Parameters
+        ----------
+        line : str
+            The line to check.
+
+        Returns
+        -------
+        bool
+            True if the line matches the end tag, False otherwise.
+
+        """
         return self._matches(line, self.end_tag)
 
     def get_next_region(self, lines: list[str]) -> tuple[list[str], list[str], list[str]]:
-        """ Find the next region in the given lines as defined by the start and end tags.
+        """
+        Find the next region in the given lines as defined by the start and end tags.
 
         Parameters
         ----------
@@ -40,6 +102,12 @@ class CadFileHelper:
             The lines for the first found region, including the start and end tag lines.
         post_lines: list[str]
             The lines that come after the region.
+
+        Raises
+        ------
+        RuntimeError
+            If a second start tag is encountered within a region or if an end tag is found outside of a region (and `ignore_false_endings` is False).
+
         """
         in_region = False
         region_start = -1
@@ -55,7 +123,7 @@ class CadFileHelper:
                     region_start = line_idx
                 else:
                     if not self.end_matches(line):
-                        raise RuntimeError
+                        raise RuntimeError("Error in CadFileHelper.get_next_region(): expected end to region but instead found second start!")
             
             if not start_matches and self.end_matches(line):
                 if in_region:
@@ -63,7 +131,8 @@ class CadFileHelper:
                     region_end = line_idx
                     break
                 else:
-                    raise RuntimeError
+                    if not self.ignore_false_endings:
+                        raise RuntimeError("Error in CadFileHelper.get_next_region(): found end region but we're not in a region!")
                 
         if region_start >= 0:
             post_lines = [] if region_end == len(lines)-1 else lines[region_end+1:]

@@ -39,7 +39,7 @@ class Text:
         #     TEXT 0.25 0.107087 0.0393701 180 0 SILKSCREEN_TOP "R1" 0 0 0.0867079 0.0667913
         text_line = None
         for line_idx, line in enumerate(lines):
-            if line.startswith("PIN"):
+            if line.startswith("TEXT"):
                 text_line = line
                 ret_lines = lines[:line_idx] + lines[line_idx+1:]
         if text_line is None:

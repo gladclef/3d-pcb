@@ -1,19 +1,15 @@
-import math
 import re
 from typing import Union
 
+import matplotlib.axis as maxis
 import numpy as np
 import pyvista
-from scipy.spatial.transform import Rotation
 import vtk
-from vtk.util import numpy_support # type: ignore
-from vtkbool import vtkBool
 
 from FileIO.CadFileHelper import CadFileHelper
 import Geometry.geometry_tools as geo
 from Geometry.LineSegment import LineSegment
 from Trace.AbstractTrace import AbstractTrace
-from Trace.AbstractVtkPointTracker import AbstractVtkPointTracker as PntInc
 from Trace.PipeShape import PipeShape
 from Trace.TraceCorner import TraceCorner
 from Trace.VtkPointGroup import VtkPointGroup
@@ -240,6 +236,10 @@ class SingleTrace(AbstractTrace):
                 verticies.vtk_indices.append(new_vtk_id)
         
         return polydata
+    
+    def draw(self, ax: maxis.Axis):
+        for seg in self.segments:
+            ax.arrow(seg.x1, seg.y1, seg.x2-seg.x1, seg.y2-seg.y1, color="teal", head_width=.3)
 
 
 def _tst_trace_from_points():

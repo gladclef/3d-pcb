@@ -1,44 +1,59 @@
-import math
-import re
-from typing import Union
+from typing import TypeVar
 
-import numpy as np
 import pyvista
 from scipy.spatial.transform import Rotation
 import vtk
-from vtk.util import numpy_support # type: ignore
-from vtkbool import vtkBool
 
+from Component.Component import Component
+from Component.Shape import Shape
 from FileIO.CadFileHelper import CadFileHelper
-import Geometry.geometry_tools as geo
-from Geometry.LineSegment import LineSegment
-from Trace.AbstractTrace import AbstractTrace
-from Trace.AbstractVtkPointTracker import AbstractVtkPointTracker as PntInc
-from Trace.PipeShape import PipeShape
 from Trace.SingleTrace import SingleTrace
-from Trace.TraceCorner import TraceCorner
-from Trace.VtkPointGroup import VtkPointGroup
 import tool.vtk_tools as vt
+
+T = TypeVar('T')
 
 
 class Board:
-    def __init__(self, gencad_file: str, traces: list[SingleTrace]):
+    def __init__(self,
+                 gencad_file: str,
+                 traces: list[SingleTrace],
+                 shapes: list[Shape],
+                 components: list[Component]):
         self.gencad_file = gencad_file
         self.traces = traces
+        self.shapes = shapes
+        self.components = components
 
     @classmethod
     def from_cad_file(cls, gencad_file: str):
-        traces = []
-
         with open(gencad_file, "r") as fin:
             lines = fin.readlines()
 
-        trace, unmatched_lines = SingleTrace.from_cad_file(lines)
-        while trace is not None:
-            traces.append(trace)
-            trace, unmatched_lines = SingleTrace.from_cad_file(unmatched_lines)
+        shapes_helper = CadFileHelper("$SHAPES", "$ENDSHAPES")
+        components_helper = CadFileHelper("$COMPONENTS", "$ENDCOMPONENTS")
+
+        def get_instances(cls: T, lines: list[str]) -> tuple[list[T], list[str]]:
+            ret: list[T] = []
+
+            instance, unmatched_lines = cls.from_cad_file(lines)
+            while instance is not None:
+                ret.append(instance)
+                instance, unmatched_lines = cls.from_cad_file(unmatched_lines)
+            
+            return ret, unmatched_lines
+
+        traces, lines = get_instances(SingleTrace, lines)
+        pre_lines, shapes_lines, post_lines = shapes_helper.get_next_region(lines)
+        lines = pre_lines + post_lines
+        shapes: list[Shape] = get_instances(Shape, shapes_lines)[0]
+        pre_lines, components_lines, post_lines = components_helper.get_next_region(lines)
+        lines = pre_lines + post_lines
+        components: list[Component] = get_instances(Component, components_lines)[0]
+
+        for component in components:
+            component.assign_shape(shapes)
         
-        board = cls(gencad_file, traces)
+        board = cls(gencad_file, traces, shapes, components)
         return board
 
     def to_vtk(self, polydata: vtk.vtkPolyData) -> vtk.vtkPolyData:
@@ -58,8 +73,12 @@ class Board:
 
         # draw the segments
         for trace in self.traces:
-            for seg in trace.segments:
-                ax.arrow(seg.x1, seg.y1, seg.x2-seg.x1, seg.y2-seg.y1, color="teal", head_width=.3)
+            trace.draw(ax)
+
+        # draw the components
+        for component in self.components:
+            component = component.get_transformed()
+            component.draw(ax)
 
         # show the plot
         plt.show(block=True)

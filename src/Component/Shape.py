@@ -1,6 +1,10 @@
 import copy
 import re
 
+import matplotlib.axis as maxis
+import matplotlib.pyplot as plt
+
+from Component.Line import Line
 from Component.Pin import Pin
 from FileIO.CadFileHelper import CadFileHelper
 
@@ -9,7 +13,7 @@ class Shape:
     A class representing an electronic component's shape.
     """
 
-    def __init__(self, short_name: str, type_name: str, pins: list[Pin]):
+    def __init__(self, short_name: str, type_name: str, pins: list[Pin], lines: list[Line]):
         """
         Parameters
         ----------
@@ -26,6 +30,8 @@ class Shape:
         """Type name of the shape."""
         self.pins = pins
         """List of `Pin` objects associated with this shape. Can be pads or vias."""
+        self.lines = lines
+        """List of `Line` objects for outlining this shape."""
 
     @property
     def full_name(self) -> str:
@@ -63,6 +69,8 @@ class Shape:
         ret = copy.deepcopy(self)
         ret.pins = new_pins
 
+        return ret
+
     @classmethod
     def from_cad_file(cls, lines: list[str]) -> tuple["Shape", list[str]]:
         """
@@ -78,7 +86,7 @@ class Shape:
         tuple[Shape, list[str]]
             A tuple containing the created `Shape` and any remaining unprocessed lines.
         """
-        helper = CadFileHelper(re.compile(r"SHAPE.*"), re.compile(r"^(\$ENDSHAPES)?$"))
+        helper = CadFileHelper(re.compile(r"SHAPE.*"), re.compile(r"^(\$ENDSHAPES)?$"), ignore_false_endings=True)
         pre_lines, shape_lines, post_lines = helper.get_next_region(lines)
         if len(shape_lines) == 0:
             return None, lines
@@ -96,5 +104,21 @@ class Shape:
             pins.append(pin)
             pin, unmatched_lines = Pin.from_cad_file(unmatched_lines)
 
-        shape = cls(short_name, type_name, pins)
+        lines = []
+        line, unmatched_lines = Line.from_cad_file(unmatched_lines)
+        while line is not None:
+            lines.append(line)
+            line, unmatched_lines = Line.from_cad_file(unmatched_lines)
+
+        shape = cls(short_name, type_name, pins, lines)
         return shape, pre_lines + post_lines
+    
+    def draw(self, ax: maxis.Axis):
+        for line in self.lines:
+            x = (line.xy1[0], line.xy2[0])
+            y = (line.xy1[1], line.xy2[1])
+            ax.plot(x, y, color="white")
+        
+        for pin in self.pins:
+            center = (pin.x_offset, pin.y_offset)
+            ax.add_patch(plt.Circle(center, .3, color="tab:orange"))

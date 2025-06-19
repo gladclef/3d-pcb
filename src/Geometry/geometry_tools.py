@@ -62,9 +62,9 @@ def apply_translation_rotation_flip(xy_or_xyz: tuple[float, float] | tuple[float
     # apply rotation
     r = Rotation.from_euler('z', rotation)
     vec = np.array([x, y, z])
-    rotated = r.apply(vec).tolist()
+    rotated = r.apply(vec)
 
     # convert to the desired return type
-    ret = retval_from_tuple(rotated, input_len, input_type)
+    ret = at.retval_from_tuple(rotated, input_len, input_type)
 
     return ret
