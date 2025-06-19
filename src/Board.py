@@ -21,23 +21,25 @@ from Trace.VtkPointGroup import VtkPointGroup
 import tool.vtk_tools as vt
 
 
-class BoardTraces:
-    def __init__(self, file: str):
-        self.file = file
-        self.traces: list[SingleTrace] = None
+class Board:
+    def __init__(self, gencad_file: str, traces: list[SingleTrace]):
+        self.gencad_file = gencad_file
+        self.traces = traces
 
-        self._load_traces()
+    @classmethod
+    def from_cad_file(cls, gencad_file: str):
+        traces = []
 
-    def _load_traces(self):
-        self.traces = []
-
-        with open(self.file, "r") as fin:
+        with open(gencad_file, "r") as fin:
             lines = fin.readlines()
 
         trace, unmatched_lines = SingleTrace.from_cad_file(lines)
         while trace is not None:
-            self.traces.append(trace)
+            traces.append(trace)
             trace, unmatched_lines = SingleTrace.from_cad_file(unmatched_lines)
+        
+        board = cls(gencad_file, traces)
+        return board
 
     def to_vtk(self, polydata: vtk.vtkPolyData) -> vtk.vtkPolyData:
         for trace in self.traces:
@@ -45,7 +47,10 @@ class BoardTraces:
         return polydata
     
     def draw_board(self):
-        """ For debugging: draw the traces that will be generated for this board. """
+        """
+        For debugging: draw simplified versions of the traces and vias that
+        will be generated for this board.
+        """
         import matplotlib.pyplot as plt
         
         # create the plot
@@ -61,11 +66,11 @@ class BoardTraces:
 
         
 if __name__ == "__main__":
-    board_traces = BoardTraces("../test schematics/hello_light/exports/hello_light.cad")
-    board_traces.draw_board()
+    board = Board.from_cad_file("../test schematics/hello_light/exports/hello_light.cad")
+    board.draw_board()
 
     polydata = vt.new_polydata()
-    polydata = board_traces.to_vtk(polydata)
+    polydata = board.to_vtk(polydata)
 
     print(f"{polydata.GetNumberOfPoints()=}")
     test_trace_mesh = pyvista.PolyData(polydata)
