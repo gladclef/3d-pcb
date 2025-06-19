@@ -1,3 +1,4 @@
+import copy
 from typing import TYPE_CHECKING
 
 from Geometry.LineSegment import LineSegment
@@ -10,14 +11,26 @@ class Path:
     A path consists of back-to-back line segments.
     """
 
-    def __init__(self, xy_points: list[tuple[float, float]], segments: list[tuple[int, int]] | list["LineSegment"]):
-        # normalize input
-        xy_points = [tuple(ab) for ab in xy_points]
+    def __init__(self, xy_points: list[tuple[float, float]], segments: list[tuple[int, int]] | list[LineSegment]):
+        # sanity check/normalize input
+        new_xy_points = []
+        for xy_idx, xy in enumerate(xy_points):
+            txy = xy if isinstance(xy, tuple) else tuple(xy)
+            try:
+                x, y = txy
+            except:
+                raise ValueError(f"Error in {self.__class__.__name__}(): " + f"expected xy_points to be a list of 2 tuples, but value at xy_points[{xy_idx}]={xy}")
+            new_xy_points.append(txy)
 
-        self._xy_points = xy_points
-        self._xypntindicies_segments: list[tuple[tuple[tuple, tuple], LineSegment]] = []
+        # build the list of segments the first time, to get the ordered points
+        xypntindicies_2_segments = self._build_segments(xy_points, segments)
+        new_segments = [s for i, s in xypntindicies_2_segments]
+        ordered_xy_points = self._get_xy_points_in_segment_order(new_segments)
 
-        self._build_segments(segments)
+        # build the list of segments a second time, now that the points can be ordered
+        new_segments_idxs = [(ordered_xy_points.index(s.xy1), ordered_xy_points.index(s.xy2)) for s in new_segments]
+        self._xy_points = ordered_xy_points
+        self._xypntindicies_2_segments = self._build_segments(ordered_xy_points, new_segments_idxs)
     
     @property
     def xy_points(self) -> list[tuple[float, float]]:
@@ -27,11 +40,15 @@ class Path:
         return self._xy_points
 
     @property
+    def edges(self) -> list[tuple[int, int]]:
+        return [tuple([self.xy_points.index(p) for p in self.segment_xypnts(s)]) for s in self.segments]
+
+    @property
     def segments(self):
         """
         Returns a list of LineSegment objects that make up this Path.
         """
-        return [s[1] for s in self._xypntindicies_segments]
+        return [s[1] for s in self._xypntindicies_2_segments]
     
     def segments_at_xypnt(self, pnt_or_pntidx: tuple[float, float] | int) -> list[LineSegment]:
 
@@ -50,7 +67,7 @@ class Path:
         except:
             pnt_idx: int = pnt_or_pntidx
         
-        matching_segments = filter(lambda s: pnt_idx in s[0], self._xypntindicies_segments)
+        matching_segments = filter(lambda s: pnt_idx in s[0], self._xypntindicies_2_segments)
         return [s[1] for s in matching_segments]
     
     def segment_xypnts(self, segment: LineSegment) -> tuple[tuple[float, float], tuple[float, float]]:
@@ -63,56 +80,94 @@ class Path:
         Returns:
             tuple[tuple[float, float], tuple[float, float]]: The two XY coordinates that make up the segment.
         """
-        for s in self._xypntindicies_segments:
+        for s in self._xypntindicies_2_segments:
             if s[1] == segment:
                 return s[0]
     
-    def _build_segment(self, segment: tuple[int, int]) -> "LineSegment":
+    @staticmethod
+    def _build_segment(xy_points: list[tuple[float, float]], segment: tuple[int, int]) -> LineSegment:
         """
         Builds a LineSegment from two XY points.
 
-        Args:
-            segment (tuple[int, int]): The indices of the start and end points in self._xy_points.
+        Params
+        ------
+        xy_points: list[tuple[float, float]]
+            List of x,y pairs.
+        segment: tuple[int, int]
+            The indices of the start and end point indicies in xy_points.
 
-        Returns:
-            LineSegment: A new LineSegment object.
+        Returns
+        -------
+        segment: LineSegment
+            A new LineSegment object.
         """
-        x1, y1 = self._xy_points[segment[0]]
-        x2, y2 = self._xy_points[segment[1]]
+        x1, y1 = xy_points[segment[0]]
+        x2, y2 = xy_points[segment[1]]
         return LineSegment((x1, y1), (x2, y2))
 
-    def _build_segments(self, segments: list[tuple[int, int]] | list["LineSegment"]):
-
+    @classmethod
+    def _build_segments(cls,
+                        xy_points: list[tuple[float, float]], 
+                        segments: list[tuple[int, int]] | list[LineSegment],
+    ) -> list[tuple[tuple[tuple, tuple], LineSegment]]:
         """
         Builds the internal representation of this Path from a list of segments.
 
-        Args:
-            segments (list[tuple[int, int]] | list[LineSegment]): A list of either segment point indices or LineSegments.
+        Params
+        ------
+        xy_points: list[tuple[float, float]]
+            List of x,y pairs.
+        segments: (list[tuple[int, int]] | list[LineSegment])
+            A list of either LineSegments or xy point pairs.
+        
+        Returns
+        -------
+        xypntindicies_2_segments: list[tuple[tuple[tuple, tuple], LineSegment]]
+            A list of [xy_point, segment] pairs, one for each point in the given segments.
         """
-        # normalize input
-        segments: list[LineSegment] = [(s if isinstance(s, LineSegment) else self._build_segment(s)) for s in segments]
-
-
-
-        # Get the point indicies that exist currently.
-        # Any that aren't found during insertion will be removed.
-        to_keep: list[tuple] = []
-        to_remove: int = 0
-
+        xypntindicies_2_segments: list[tuple[tuple[tuple, tuple], LineSegment]] = []
 
         # Insert new segments and register their existence.
-        xypntindicies_to_index = {s[0]: i for i, s in enumerate(self._xypntindicies_segments)}
         for s in segments:
+            if not isinstance(s, LineSegment):
+                s = cls._build_segment(xy_points, s)
             k = (s.xy1, s.xy2)
-            if k not in xypntindicies_to_index:
-                self._xypntindicies_segments.append((k, s))
-                to_keep.append(self._xypntindicies_segments[-1])
-            else:
-                to_remove += 1
+            xypntindicies_2_segments.append((k, s))
+        
+        return xypntindicies_2_segments
 
-        # Remove keys that are not in the given list of segments.
-        if to_remove > 0:
-            new_xypntindicies_segments = []
-            for xys in to_keep:
-                new_xypntindicies_segments.append(xys)
-            self._xypntindicies_segments = new_xypntindicies_segments
+    @staticmethod
+    def _get_xy_points_in_segment_order(segments: list[LineSegment]) -> list[tuple[float, float]]:
+        """
+        Returns
+        -------
+        ordered_xy_points: list[tuple[float, float]]
+            The x,y point pairs in the given segments, reordered to be in the order found in the segments.
+        """
+        ordered_xy_points = []
+
+        prev_segment: LineSegment = None
+        for segment_idx, segment in enumerate(segments):
+            if prev_segment is not None:
+                if prev_segment.xy1 in [segment.xy1, segment.xy2]:
+                    xy_common, xy_other = prev_segment.xy1, prev_segment.xy2
+                else:
+                    assert prev_segment.xy2 in [segment.xy1, segment.xy2]
+                    xy_common, xy_other = prev_segment.xy2, prev_segment.xy1
+
+                if segment_idx == 1:
+                    # special case, first segment
+                    ordered_xy_points.append(xy_other)
+
+                ordered_xy_points.append(xy_common)
+
+            prev_segment = segment
+        
+        # special case, last segment
+        if segment.xy1 == ordered_xy_points[-1]:
+            ordered_xy_points.append(segment.xy2)
+        else:
+            assert prev_segment.xy2 == ordered_xy_points[-1]
+            ordered_xy_points.append(segment.xy1)
+        
+        return ordered_xy_points
