@@ -1,4 +1,6 @@
 import math
+import re
+from typing import Union
 
 import numpy as np
 import pyvista
@@ -7,14 +9,16 @@ import vtk
 from vtk.util import numpy_support # type: ignore
 from vtkbool import vtkBool
 
+from FileIO.CadFileHelper import CadFileHelper
+import Geometry.geometry_tools as geo
+from Geometry.LineSegment import LineSegment
 from Trace.AbstractTrace import AbstractTrace
 from Trace.AbstractVtkPointTracker import AbstractVtkPointTracker as PntInc
-import Geometry.geometry_tools as geo
 from Trace.PipeShape import PipeShape
-from Geometry.LineSegment import LineSegment
 from Trace.TraceCorner import TraceCorner
 from Trace.VtkPointGroup import VtkPointGroup
 import tool.vtk_tools as vt
+from tool.units import *
 
 
 class SingleTrace(AbstractTrace):
@@ -25,8 +29,12 @@ class SingleTrace(AbstractTrace):
     junctions they should be built up of multiple SingleTrace objects
     using the more general Trace class.
     """
-    def __init__(self, xy_points: list[tuple[float, float]], segments: list[tuple[int, int]] | list[LineSegment], shape: PipeShape, bend_radius: float=1, allow_overlap=False):
+    def __init__(self, xy_points: list[tuple[float, float]], segments: list[tuple[int, int]] | list[LineSegment], shape: PipeShape=None, bend_radius: float=1, allow_overlap=False):
         super().__init__(xy_points, segments, shape)
+
+        # set some defualts
+        if bend_radius is None:
+            bend_radius = 1
 
         self._xypnt_vtk_verticies: dict[int, VtkPointGroup] = {}
         """ Dictionary from xy point index to vtk points. """
@@ -139,19 +147,74 @@ class SingleTrace(AbstractTrace):
         vb.add_missing_vtk_points(polydata)
         
         # build the sides along the length of the trace
-        vt.join_with_quads(polydata, va.vtk_idx_0, vb.vtk_idx_0, len(va))
+        vt.adjoin_with_quads(polydata, va.vtk_idx_0, vb.vtk_idx_0, len(va))
+        
+        # Assign point normals
+        start_idx = min(va.vtk_idx_0, vb.vtk_idx_0)
+        end_idx = max(max(va.vtk_indices), max(vb.vtk_indices)) + 1
+        vt.calculate_point_normals(polydata, start_idx, end_idx)
     
     def inc_vtk_indicies(self, start: int, cnt: int):
         for segment_points in self._xypnt_vtk_verticies.values():
             segment_points.inc_vtk_indicies(start, cnt)
 
-    def to_vtk(self):
-        # Create vtkPolyData and set points and cells
-        vtk_points = vtk.vtkPoints()
-        polydata = vtk.vtkPolyData()
-        vtk_cells = vtk.vtkCellArray()
-        polydata.SetPoints(vtk_points)
-        polydata.SetPolys(vtk_cells)
+    @classmethod
+    def from_cad_file(cls, cad_lines: list[str], shape: PipeShape=None, bend_radius: float=None) -> tuple[Union["SingleTrace",None], list[str]]:
+        routes_helper = CadFileHelper("$ROUTES", "$ENDROUTES")
+        route_helper = CadFileHelper(re.compile(r"ROUTE.*"), re.compile(r"(ROUTE.*|\$ENDROUTES)"))
+
+        # get the lines from the cad file for the next route
+        pre_routes, routes, post_routes = routes_helper.get_next_region(cad_lines)
+        if len(routes) == 0:
+            return None, cad_lines
+        
+        pre_route, route, post_route = route_helper.get_next_region(routes)
+        if len(route) == 0:
+            return None, cad_lines
+        if not route[-1].startswith("$ENDROUTES"):
+            post_route.insert(0, route[-1])
+        route = route[:-1]
+        
+        # parse the lines for this route
+        segment_lines = list(filter(lambda l: l.startswith("LINE "), route))
+        xy_points_orig: list[tuple[float, float]] = []
+        edges: list[tuple[int, int]] = []
+        for segment_line in segment_lines:
+
+            x1, y1, x2, y2 = tuple(map(float, segment_line.strip()[5:].split(" ")))
+            xy1, xy2 = (x1, y1), (x2, y2)
+            if xy1 not in xy_points_orig:
+                xy_points_orig.append(xy1)
+            if xy2 not in xy_points_orig:
+                xy_points_orig.append(xy2)
+            
+            xy1_idx, xy2_idx = xy_points_orig.index(xy1), xy_points_orig.index(xy2)
+            edges.append((xy1_idx, xy2_idx))
+        xy_points: list[tuple[float, float]] = [(in2mm(x), in2mm(y)) for x, y in xy_points_orig]
+        
+        if len(edges) > 1:
+            # orient adjacent edges
+            for edge_idx, (xy1_idx, xy2_idx) in enumerate(edges[:-1]):
+                next_edge = edges[edge_idx]
+                if xy1_idx in next_edge:
+                    edges[edge_idx] = (xy2_idx, xy1_idx)
+                    
+            # orient the last edge
+            xy1_idx, xy2_idx = edges[-1]
+            prev_edge = edges[-2]
+            if xy2_idx in prev_edge:
+                edges[-1] = (xy2_idx, xy1_idx)
+
+        # debugging
+        for edge in edges:
+            print(f"LINE   {xy_points_orig[edge[0]]}   {xy_points_orig[edge[1]]}")
+
+        ret = cls(xy_points, edges, shape, bend_radius)
+        return ret, pre_routes + pre_route + post_route + post_routes
+
+    def to_vtk(self, polydata: vtk.vtkPolyData):
+        vtk_points: vtk.vtkPoints = polydata.GetPoints()
+        vtk_cells: vtk.vtkCellData = polydata.GetCellData()
 
         # build the segments verts and cells
         for segment in self.segments:
@@ -176,15 +239,10 @@ class SingleTrace(AbstractTrace):
                 verticies.xyz_points = np.concat((verticies.xyz_points, np.array([xyz_point])), axis=0)
                 verticies.vtk_indices.append(new_vtk_id)
         
-        # Assign point normals
-        vt.calculate_point_normals(polydata)
-        
         return polydata
 
-if __name__ == "__main__":
-    from Trace.PipeShape import PipeBasicBox
-    from tool.units import *
 
+def _tst_trace_from_points():
     # simple trace
     trace_points = [
         (0, 0),
@@ -229,7 +287,16 @@ if __name__ == "__main__":
     trace_edges = [(i, i+1) for i in range(len(trace_points)-1)]
 
     test_trace = SingleTrace(trace_points, trace_edges, PipeBasicBox(awg2mm(26)), allow_overlap=True)
-    vtk_test_trace = test_trace.to_vtk()
+    return test_trace
+
+
+if __name__ == "__main__":
+    from Trace.PipeShape import PipeBasicBox
+    from tool.units import *
+
+    test_trace = _tst_trace_from_points()
+
+    vtk_test_trace = test_trace.to_vtk(vt.new_polydata())
     print(f"{vtk_test_trace.GetNumberOfPoints()=}")
     vt.save_to_vtk(vtk_test_trace, "test_trace.vtk")
 

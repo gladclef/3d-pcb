@@ -100,7 +100,7 @@ class TraceCorner(PathCorner, PntInc):
         for a in range(self.n_points - 1):
             va = self.get_vtk_group(a)
             vb = self.get_vtk_group(a + 1)
-            vt.join_with_quads(polydata, va.vtk_idx_0, vb.vtk_idx_0, len(va))
+            vt.adjoin_with_quads(polydata, va.vtk_idx_0, vb.vtk_idx_0, len(va))
 
     def inc_vtk_indicies(self, start: int, cnt: int):
         for xy_pnt_idx in range(len(self.xypntidx_to_vtkidx)):

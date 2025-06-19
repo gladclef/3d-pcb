@@ -144,8 +144,7 @@ class PipeShape:
         """
         p0_id = starting_point_id
         npoints = len(self.normalize_points())
-        vtk_points: vtk.vtkPoints = polydata.GetPoints()
-        vtk_cells: vtk.vtkCellArray = polydata.GetPolys()
+        vtk_points, vtk_cells = vt.verts_and_cells(polydata)
 
         # set defaults
         if mode is None:
@@ -226,8 +225,8 @@ class PipeBasicBox(PipeShape):
         xz_pointz.append([wire_radius, -lip_height])
 
         # box
-        box_radius = min(max(wire_diameter*1.5, wire_diameter+NOZZLE_DIAMETER), max_box_width)
-        box_height = wire_diameter+LAYER_HEIGHT
+        box_radius = min(max(wire_diameter*1.5, NOZZLE_DIAMETER), max_box_width)
+        box_height = min(wire_diameter, LAYER_HEIGHT)
         xz_pointz.append([box_radius, -lip_height])
         xz_pointz.append([box_radius, -lip_height-box_height])
 

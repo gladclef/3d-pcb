@@ -48,7 +48,7 @@ def insert_points(polydata: vtk.vtkPolyData, insert_start_idx: int, values: tupl
             if pnt_id >= insert_start_idx:
                 vtk_cells.ReplaceCellPointAtId(cell_idx, pnt_idx, pnt_id+ninserts)
 
-def join_with_quads(polydata: vtk.vtkPolyData, a_points_idx: int, b_points_idx: int, num_points: int):
+def adjoin_with_quads(polydata: vtk.vtkPolyData, a_points_idx: int, b_points_idx: int, num_points: int):
     """
     Join two groups A and B with equal numbers of verticies with quads.
     This function is most useful for extruding a shape.
@@ -114,12 +114,14 @@ def triangulate_quads(polydata: vtk.vtkPolyData):
     # Replace the old polys with new_polys in polydata
     polydata.SetPolys(new_polys)
 
-def calculate_point_normals(polydata):
+def calculate_point_normals(polydata, start_idx=-1, end_idx=-1):
     """
     Calculate point normals that point away from the centroid of the polydata.
 
     Args:
         polydata (vtk.vtkPolyData): The input polydata with points.
+        start_idx (int): The range of vtk points to calculate point normals for, inclusive.
+        end_idx (int): The range of vtk points to calculate point normals for, exclusive.
 
     Returns:
         None. Modifies the input polydata to include normals.
@@ -132,16 +134,21 @@ def calculate_point_normals(polydata):
     num_points = polydata.GetNumberOfPoints()
     if num_points == 0:
         return
+    
+    # Get the range
+    start_idx = start_idx if start_idx > -1 else 0
+    end_idx = end_idx if end_idx > -1 else num_points
+    to_calculate = end_idx - start_idx
 
     # Create an array to store normals
     normals = vtk.vtkDoubleArray()
     normals.SetName("Normals")
     normals.SetNumberOfComponents(3)
-    normals.SetNumberOfTuples(num_points)
+    normals.SetNumberOfTuples(to_calculate)
 
     # Get the points as a numpy array for easier manipulation
     points = np.array([
-        polydata.GetPoint(i) for i in range(num_points)
+        polydata.GetPoint(i) for i in range(start_idx, end_idx)
     ])
 
     # Calculate centroid (average point location)
@@ -155,3 +162,53 @@ def calculate_point_normals(polydata):
 
     # Assign the normals array to the polydata's point data
     polydata.GetPointData().SetNormals(normals)
+
+def new_polydata() -> vtk.vtkPolyData:
+    # Create vtkPolyData and set points and cells
+    vtk_points = vtk.vtkPoints()
+    polydata = vtk.vtkPolyData()
+    vtk_cells = vtk.vtkCellArray()
+    polydata.SetPoints(vtk_points)
+    polydata.SetPolys(vtk_cells)
+    return polydata
+
+def verts_and_cells(polydata: vtk.vtkPolyData) -> tuple[vtk.vtkPoints, vtk.vtkCellArray]:
+    vtk_points: vtk.vtkPoints = polydata.GetPoints()
+    vtk_cells: vtk.vtkCellArray = polydata.GetPolys()
+    return vtk_points, vtk_cells
+
+def join(polydata1: vtk.vtkPolyData, polydata2: vtk.vtkPolyData):
+    """ Merges polydata2 into polydata1 by adding new verticies and associated cells. """
+    v1, c1 = verts_and_cells(polydata1)
+    v2, c2 = verts_and_cells(polydata2)
+
+    # insert the points
+    start_idx = v1.GetNumberOfPoints()
+    for vi in range(v2.GetNumberOfPoints()):
+        v1.InsertNextPoint(v2.GetPoint(vi))
+
+    # insert cells
+    for ci in range(c2.GetNumberOfCells()):
+        cell = vtk.vtkIdList()
+        c2.GetCellAtId(ci, cell)
+
+        if cell.GetNumberOfIds() == 3:
+            # insert triangles
+            tri_old: vtk.vtkTriangle = cell
+            tri_new = vtk.vtkTriangle()
+            tri_new.GetPointIds().SetId(0, tri_old.GetPointId(0)+start_idx)
+            tri_new.GetPointIds().SetId(1, tri_old.GetPointId(1)+start_idx)
+            tri_new.GetPointIds().SetId(2, tri_old.GetPointId(2)+start_idx)
+            c1.InsertNextCell(tri_new)
+
+        if cell.GetNumberOfIds() == 4:
+            # insert quads
+            quad_old: vtk.vtkQuad = cell
+            quad_new = vtk.vtkQuad()
+            quad_new.GetPointIds().SetId(0, quad_old.GetPointId(0)+start_idx)
+            quad_new.GetPointIds().SetId(1, quad_old.GetPointId(1)+start_idx)
+            quad_new.GetPointIds().SetId(2, quad_old.GetPointId(2)+start_idx)
+            quad_new.GetPointIds().SetId(3, quad_old.GetPointId(3)+start_idx)
+            c1.InsertNextCell(quad_new)
+
+    # TODO, assign vertex/cell normals
