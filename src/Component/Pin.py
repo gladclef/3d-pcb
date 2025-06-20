@@ -1,6 +1,8 @@
 import copy
 import re
 
+import matplotlib.axis as maxis
+import matplotlib.pyplot as plt
 import numpy as np
 
 from tool.units import *
@@ -108,3 +110,7 @@ class Pin:
 
         pin = cls(pad_name, x_offset, y_offset, layer)
         return pin, ret_lines
+
+    def draw(self, ax: maxis.Axis):
+        center = (self.x_offset, self.y_offset)
+        ax.add_patch(plt.Circle(center, .3, color="tab:orange"))

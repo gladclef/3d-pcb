@@ -2,8 +2,9 @@ import copy
 import re
 
 import matplotlib.axis as maxis
-import matplotlib.pyplot as plt
 
+from Component.Arc import Arc
+from Component.Circle import Circle
 from Component.Line import Line
 from Component.Pin import Pin
 from FileIO.CadFileHelper import CadFileHelper
@@ -13,7 +14,7 @@ class Shape:
     A class representing an electronic component's shape.
     """
 
-    def __init__(self, short_name: str, type_name: str, pins: list[Pin], lines: list[Line]):
+    def __init__(self, short_name: str, type_name: str, pins: list[Pin], lines: list[Line], arcs: list[Arc], circles: list[Circle]):
         """
         Parameters
         ----------
@@ -32,6 +33,10 @@ class Shape:
         """List of `Pin` objects associated with this shape. Can be pads or vias."""
         self.lines = lines
         """List of `Line` objects for outlining this shape."""
+        self.arcs = arcs
+        """List of `Arc` objects for outlining this shape."""
+        self.circles = circles
+        """List of `Circle` objects for outlining this shape."""
 
     @property
     def full_name(self) -> str:
@@ -60,19 +65,25 @@ class Shape:
         Shape
             A new instance of `Shape` with transformed pins.
         """
-        new_pins: list[Pin] = []
-        for pin in self.pins:
-            new_pin = pin.apply_translation_rotation_layer(translation, rotation, is_bottom)
-            new_pins.append(new_pin)
+        def apply_to_children(children: list) -> list:
+            new_children: list[Pin] = []
+            
+            for child in children:
+                new_child = child.apply_translation_rotation_layer(translation, rotation, is_bottom)
+                new_children.append(new_child)
 
-        new_lines: list[Line] = []
-        for line in self.lines:
-            new_line = line.apply_translation_rotation_layer(translation, rotation, is_bottom)
-            new_lines.append(new_line)
+            return new_children
+
+        new_pins = apply_to_children(self.pins)
+        new_lines = apply_to_children(self.lines)
+        new_arcs = apply_to_children(self.arcs)
+        new_circles = apply_to_children(self.circles)
 
         ret = copy.deepcopy(self)
         ret.pins = new_pins
         ret.lines = new_lines
+        ret.arcs = new_arcs
+        ret.circles = new_circles
 
         return ret
 
@@ -106,27 +117,34 @@ class Shape:
         full_name = shape_header_line.split('"', 1)[1].rstrip().rstrip('"')
         short_name, type_name = tuple(full_name.split(":", 1))
 
-        pins = []
-        pin, unmatched_lines = Pin.from_cad_file(shape_lines)
-        while pin is not None:
-            pins.append(pin)
-            pin, unmatched_lines = Pin.from_cad_file(unmatched_lines)
+        def children_from_cad_file(cls, unmatched_lines: list[str]) -> tuple[list, list[str]]:
+            children = []
 
-        lines = []
-        line, unmatched_lines = Line.from_cad_file(unmatched_lines)
-        while line is not None:
-            lines.append(line)
-            line, unmatched_lines = Line.from_cad_file(unmatched_lines)
+            child, unmatched_lines = cls.from_cad_file(unmatched_lines)
+            while child is not None:
+                children.append(child)
+                child, unmatched_lines = cls.from_cad_file(unmatched_lines)
+            
+            return children, unmatched_lines
+        
+        unmatched_lines = shape_lines[1:]
+        pins, unmatched_lines = children_from_cad_file(Pin, unmatched_lines)
+        lines, unmatched_lines = children_from_cad_file(Line, unmatched_lines)
+        arcs, unmatched_lines = children_from_cad_file(Arc, unmatched_lines)
+        circles, unmatched_lines = children_from_cad_file(Circle, unmatched_lines)
 
-        shape = cls(short_name, type_name, pins, lines)
+        shape = cls(short_name, type_name, pins, lines, arcs, circles)
         return shape, pre_lines + post_lines
     
     def draw(self, ax: maxis.Axis):
         for line in self.lines:
-            x = (line.xy1[0], line.xy2[0])
-            y = (line.xy1[1], line.xy2[1])
-            ax.plot(x, y, color="grey")
+            line.draw(ax)
+        
+        for arc in self.arcs:
+            arc.draw(ax)
+        
+        for circle in self.circles:
+            circle.draw(ax)
         
         for pin in self.pins:
-            center = (pin.x_offset, pin.y_offset)
-            ax.add_patch(plt.Circle(center, .3, color="tab:orange"))
+            pin.draw(ax)

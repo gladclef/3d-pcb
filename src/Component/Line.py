@@ -1,6 +1,7 @@
 import copy
 import re
 
+import matplotlib.axis as maxis
 import numpy as np
 
 from tool.units import *
@@ -88,3 +89,8 @@ class Line:
 
         line = cls((x1, y1), (x2, y2))
         return line, ret_lines
+
+    def draw(self, ax: maxis.Axis):
+        x = (self.xy1[0], self.xy2[0])
+        y = (self.xy1[1], self.xy2[1])
+        ax.plot(x, y, color="grey")
