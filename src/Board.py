@@ -92,7 +92,7 @@ class Board:
         
 if __name__ == "__main__":
     board = Board.from_cad_file("../test schematics/hello_light/exports/hello_light.cad")
-    # board.draw_board()
+    board.draw_board()
 
     polydata = vt.new_polydata()
     polydata = board.to_vtk(polydata)

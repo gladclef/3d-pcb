@@ -231,6 +231,58 @@ class PipeBasicBox(PipeShape):
         xz_pointz.append([box_radius, -lip_height-box_height])
 
         super().__init__(xz_pointz, symetric_about_x=False, symetric_about_z=True)
+
+class PipeBasicCircle(PipeShape):
+    """
+    Circular shape that is slightly wider than the wire diameter,
+    with a flat opening at the top that is slightly smaller the wire.
+    """
+    def __init__(self, wire_diameter: float, max_radius: float=None):
+        """
+        Parameters
+        ----------
+        wire_diameter : float
+            The size of the wire in millimeters.
+        max_radius : float, optional
+            The maximum width of the circular structure, by default BREADBOARD_SPACING-NOZZLE_DIAMETER.
+        """
+        global BREADBOARD_SPACING
+        global NOZZLE_DIAMETER
+        global LAYER_HEIGHT
+
+        wire_radius = wire_diameter / 2
+        xz_pointz: list[list[float]] = []
+
+        # assign default values
+        max_radius = max_radius if max_radius is not None else BREADBOARD_SPACING-NOZZLE_DIAMETER
+        
+        # compute sizes
+        radius = min(max_radius, wire_diameter*1.1)
+        opening_radius = wire_diameter*0.85
+        center = [0, -radius-LAYER_HEIGHT]
+
+        # opening
+        opening_intersection_angle = np.arccos(opening_radius/2)
+        opening_intersection_z = np.sin(opening_intersection_angle)*radius + center[1]
+        xz_pointz.append([-opening_radius/2, opening_intersection_z])
+        xz_pointz.append([-opening_radius/2, 0])
+        xz_pointz.append([opening_radius/2, 0])
+        xz_pointz.append([opening_radius/2, opening_intersection_z])
+
+        # generate a circle for the trace
+        resolution = 32
+        for i in range(resolution):
+            angle = 2*np.pi/resolution*i
+            angle += np.pi/2
+            x, z = -np.cos(angle)*radius + center[0], np.sin(angle)*radius + center[1]
+
+            if z >= center[1]:
+                if abs(x) <= abs(opening_radius):
+                    continue
+
+            xz_pointz.append([x, z])
+
+        super().__init__(xz_pointz, symetric_about_x=False, symetric_about_z=True)
     
 class PipeDebug(PipeShape):
     """

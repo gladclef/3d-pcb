@@ -10,7 +10,7 @@ from FileIO.CadFileHelper import CadFileHelper
 import Geometry.geometry_tools as geo
 from Geometry.LineSegment import LineSegment
 from Trace.AbstractTrace import AbstractTrace
-from Trace.PipeShape import PipeShape
+from Trace.PipeShape import PipeShape, PipeBasicBox
 from Trace.TraceCorner import TraceCorner
 from Trace.VtkPointGroup import VtkPointGroup
 import tool.vtk_tools as vt

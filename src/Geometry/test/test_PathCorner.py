@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from Trace.PipeShape import PipeBasicBox
+from Trace.PipeShape import PipeBasicCircle
 from Trace.SingleTrace import SingleTrace
 from Geometry.PathCorner import PathCorner
 from tool.units import *
@@ -48,7 +48,7 @@ class TestPathCorner(unittest.TestCase):
                     [0, 1],
                     [1, 2]
                 ]
-                shape = PipeBasicBox(awg2mm(26))
+                shape = PipeBasicCircle(awg2mm(26))
                 trace = SingleTrace(xy_points, segments, shape)
                 corner = PathCorner(trace, trace.segments, 1)
                 corner.debug = debug
@@ -152,7 +152,7 @@ class TestPathCorner(unittest.TestCase):
                 [0, 1],
                 [1, 2]
             ]
-            shape = PipeBasicBox(awg2mm(26))
+            shape = PipeBasicCircle(awg2mm(26))
             trace = SingleTrace(xy_points, segments, shape)
             corner = PathCorner(trace, trace.segments, 1)
 

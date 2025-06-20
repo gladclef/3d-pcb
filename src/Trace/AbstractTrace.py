@@ -5,7 +5,7 @@ import vtk
 from Trace.AbstractVtkPointTracker import AbstractVtkPointTracker as PntInc
 from Geometry.LineSegment import LineSegment
 from Geometry.Path import Path
-from Trace.PipeShape import PipeShape, PipeBasicBox
+from Trace.PipeShape import PipeShape, PipeBasicCircle
 from tool.units import *
 
 class AbstractTrace(Path, PntInc, ABC):
@@ -17,7 +17,7 @@ class AbstractTrace(Path, PntInc, ABC):
 
         # set some defaults
         if shape is None:
-            shape = PipeBasicBox(awg2mm(26))
+            shape = PipeBasicCircle(awg2mm(26))
 
         self.shape = shape
 
