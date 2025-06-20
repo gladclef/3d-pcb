@@ -91,8 +91,14 @@ class Component:
         is_bottom = self.layer.lower() == "bottom"
         transformed_shape = self.shape.apply_translation_rotation_layer(self.translation, self.rotation, is_bottom)
 
+        new_texts: list[Text] = []
+        for text in self.texts:
+            new_text = text.apply_translation_rotation_layer(self.translation, self.rotation, is_bottom)
+            new_texts.append(new_text)
+
         ret = copy.deepcopy(self)
         ret.shape = transformed_shape
+        ret.texts = new_texts
         
         return ret
 
@@ -176,8 +182,9 @@ class Component:
     
     def draw(self, ax: maxis.Axis):
         self.shape.draw(ax)
-        text_loc = self.texts[0].group_x_offset, self.texts[0].group_y_offset
-        ax.text(text_loc[0], text_loc[1], repr(self), color="white", fontsize=0.3)
+
+        for text in self.texts:
+            text.draw(ax)
 
     def __repr__(self) -> str:
         if len(self.texts) > 0:

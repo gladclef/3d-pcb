@@ -71,16 +71,17 @@ class Board:
         # create the plot
         fig, ax = plt.subplots(figsize=(10,10))
 
-        # draw the segments
-        for trace in self.traces:
-            trace.draw(ax)
-
         # draw the components
         for component in self.components:
             component = component.get_transformed()
             component.draw(ax)
 
+        # draw the segments
+        for trace in self.traces:
+            trace.draw(ax)
+
         # show the plot
+        plt.axis('equal')
         plt.show(block=True)
 
         

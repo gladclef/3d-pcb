@@ -43,7 +43,7 @@ class Pin:
         translation : tuple[float, float]
             Translation vector (x, y).
         rotation : float
-            Rotation angle in degrees.
+            Rotation angle in radians.
         is_bottom : bool
             If True, flip the coordinates along the x-axis after applying translation and rotation.
 

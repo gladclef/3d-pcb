@@ -22,7 +22,7 @@ class Line:
         translation : tuple[float, float]
             Translation vector (x, y).
         rotation : float
-            Rotation angle in degrees.
+            Rotation angle in radians.
         is_bottom : bool
             If True, flip the coordinates along the x-axis after applying translation and rotation.
 
@@ -65,7 +65,7 @@ class Line:
 
         line_line = None
         for line_idx, line in enumerate(lines):
-            if line.startswith("Line"):
+            if line.startswith("LINE"):
                 line_line = line
                 ret_lines = lines[:line_idx] + lines[line_idx+1:]
                 break
@@ -73,7 +73,7 @@ class Line:
             return None, lines
         
         # regex explanation:             x1         y1         x2         y2
-        line_pattern = re.compile(r"Line ([-\d\.]+) ([-\d\.]+) ([-\d\.]+) ([-\d\.]+)")
+        line_pattern = re.compile(r"LINE ([-\d\.]+) ([-\d\.]+) ([-\d\.]+) ([-\d\.]+)")
 
         # break out the various parts of the line
         match = line_pattern.match(line_line)

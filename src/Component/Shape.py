@@ -62,12 +62,17 @@ class Shape:
         """
         new_pins: list[Pin] = []
         for pin in self.pins:
-            pin = copy.deepcopy(pin)
-            pin.apply_translation_rotation_layer(translation, rotation, is_bottom)
-            new_pins.append(pin)
+            new_pin = pin.apply_translation_rotation_layer(translation, rotation, is_bottom)
+            new_pins.append(new_pin)
+
+        new_lines: list[Line] = []
+        for line in self.lines:
+            new_line = line.apply_translation_rotation_layer(translation, rotation, is_bottom)
+            new_lines.append(new_line)
 
         ret = copy.deepcopy(self)
         ret.pins = new_pins
+        ret.lines = new_lines
 
         return ret
 
@@ -90,6 +95,9 @@ class Shape:
         pre_lines, shape_lines, post_lines = helper.get_next_region(lines)
         if len(shape_lines) == 0:
             return None, lines
+        
+        # debugging
+        # print("In Shape.from_cad_file(), shape_lines are:\n\t" + "\t".join(shape_lines))
 
         # example "SHAPE" line:
         # SHAPE "Resistor_THT:R_Axial_DIN0309_L9.0mm_D3.2mm_P12.70mm_Horizontal"
@@ -99,7 +107,7 @@ class Shape:
         short_name, type_name = tuple(full_name.split(":", 1))
 
         pins = []
-        pin, unmatched_lines = Pin.from_cad_file(lines)
+        pin, unmatched_lines = Pin.from_cad_file(shape_lines)
         while pin is not None:
             pins.append(pin)
             pin, unmatched_lines = Pin.from_cad_file(unmatched_lines)
@@ -117,7 +125,7 @@ class Shape:
         for line in self.lines:
             x = (line.xy1[0], line.xy2[0])
             y = (line.xy1[1], line.xy2[1])
-            ax.plot(x, y, color="white")
+            ax.plot(x, y, color="grey")
         
         for pin in self.pins:
             center = (pin.x_offset, pin.y_offset)

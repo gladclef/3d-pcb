@@ -201,9 +201,9 @@ class SingleTrace(AbstractTrace):
             if xy2_idx in prev_edge:
                 edges[-1] = (xy2_idx, xy1_idx)
 
-        # debugging
-        for edge in edges:
-            print(f"LINE   {xy_points_orig[edge[0]]}   {xy_points_orig[edge[1]]}")
+        # # debugging
+        # for edge in edges:
+        #     print(f"LINE   {xy_points_orig[edge[0]]}   {xy_points_orig[edge[1]]}")
 
         ret = cls(xy_points, edges, shape, bend_radius)
         return ret, pre_routes + pre_route + post_route + post_routes

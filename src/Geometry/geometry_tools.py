@@ -38,7 +38,7 @@ def apply_translation_rotation_flip(xy_or_xyz: tuple[float, float] | tuple[float
     translation : tuple[float, float]
         Translation vector (tx, ty).
     rotation : float
-        Rotation angle in degrees around the z-axis.
+        Rotation angle in radians around the z-axis.
     flip : bool
         If True, flip the coordinates along the x-axis and invert the rotation.
 
@@ -55,16 +55,17 @@ def apply_translation_rotation_flip(xy_or_xyz: tuple[float, float] | tuple[float
         x = -x
         rotation = -rotation
 
-    # apply translation
-    x += translation[0]
-    y += translation[1]
-
     # apply rotation
     r = Rotation.from_euler('z', rotation)
     vec = np.array([x, y, z])
     rotated = r.apply(vec)
+    x, y, z = tuple(rotated.tolist())
+
+    # apply translation
+    x += translation[0]
+    y += translation[1]
 
     # convert to the desired return type
-    ret = at.retval_from_tuple(rotated, input_len, input_type)
+    ret = at.retval_from_tuple((x, y, z), input_len, input_type)
 
     return ret
