@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.spatial.transform import Rotation
 import vtk
 from vtk.util import numpy_support # type: ignore
 
@@ -177,6 +178,23 @@ def verts_and_cells(polydata: vtk.vtkPolyData) -> tuple[vtk.vtkPoints, vtk.vtkCe
     vtk_cells: vtk.vtkCellArray = polydata.GetPolys()
     return vtk_points, vtk_cells
 
+def rotate(polydata: vtk.vtkPolyData, rot: Rotation):
+    verts, cells = verts_and_cells(polydata)
+
+    for vi in range(verts.GetNumberOfPoints()):
+        x, y, z = verts.GetPoint(vi)
+        rotated = rot.apply(np.array([x, y, z]))
+        rx, ry, rz = rotated[0], rotated[1], rotated[2]
+        verts.SetPoint(vi, (rx, ry, rz))
+
+def translate(polydata: vtk.vtkPolyData, translation: tuple[float, float, float]):
+    verts, cells = verts_and_cells(polydata)
+
+    for vi in range(verts.GetNumberOfPoints()):
+        x, y, z = verts.GetPoint(vi)
+        tx, ty, tz = x+translation[0], y+translation[1], z+translation[2]
+        verts.SetPoint(vi, (tx, ty, tz))
+
 def join(polydata1: vtk.vtkPolyData, polydata2: vtk.vtkPolyData):
     """ Merges polydata2 into polydata1 by adding new verticies and associated cells. """
     v1, c1 = verts_and_cells(polydata1)
@@ -192,7 +210,16 @@ def join(polydata1: vtk.vtkPolyData, polydata2: vtk.vtkPolyData):
         cell = vtk.vtkIdList()
         c2.GetCellAtId(ci, cell)
 
-        if cell.GetNumberOfIds() == 3:
+        if not hasattr(cell, 'GetPointId'):
+            old_poly = cell
+            new_poly = vtk.vtkPolygon()
+            new_poly.GetPointIds().SetNumberOfIds(cell.GetNumberOfIds())
+            for i in range(cell.GetNumberOfIds()):
+                id = old_poly.GetId(i)+start_idx
+                new_poly.GetPointIds().SetId(i, id)
+            c1.InsertNextCell(new_poly)
+
+        elif cell.GetNumberOfIds() == 3:
             # insert triangles
             tri_old: vtk.vtkTriangle = cell
             tri_new = vtk.vtkTriangle()
@@ -201,7 +228,7 @@ def join(polydata1: vtk.vtkPolyData, polydata2: vtk.vtkPolyData):
             tri_new.GetPointIds().SetId(2, tri_old.GetPointId(2)+start_idx)
             c1.InsertNextCell(tri_new)
 
-        if cell.GetNumberOfIds() == 4:
+        elif cell.GetNumberOfIds() == 4:
             # insert quads
             quad_old: vtk.vtkQuad = cell
             quad_new = vtk.vtkQuad()
@@ -210,5 +237,8 @@ def join(polydata1: vtk.vtkPolyData, polydata2: vtk.vtkPolyData):
             quad_new.GetPointIds().SetId(2, quad_old.GetPointId(2)+start_idx)
             quad_new.GetPointIds().SetId(3, quad_old.GetPointId(3)+start_idx)
             c1.InsertNextCell(quad_new)
+        
+        else:
+            raise RuntimeError(f"In vtk_tools.join(): unknown cell type with {cell.GetNumberOfIds()} ids")
 
     # TODO, assign vertex/cell normals

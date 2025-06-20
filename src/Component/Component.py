@@ -3,6 +3,7 @@ import re
 
 import matplotlib.axis as maxis
 import numpy as np
+import vtk
 
 from Component.Shape import Shape
 from Component.Text import Text
@@ -179,6 +180,11 @@ class Component:
             component.assign_shape(shapes)
 
         return component, pre_lines + post_lines
+
+    def to_vtk(self, polydata: vtk.vtkPolyData) -> vtk.vtkPolyData:
+        self.shape.to_vtk(polydata)
+
+        return polydata
     
     def draw(self, ax: maxis.Axis):
         self.shape.draw(ax)

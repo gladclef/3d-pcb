@@ -59,6 +59,11 @@ class Board:
     def to_vtk(self, polydata: vtk.vtkPolyData) -> vtk.vtkPolyData:
         for trace in self.traces:
             trace.to_vtk(polydata)
+
+        for component in self.components:
+            component = component.get_transformed()
+            component.to_vtk(polydata)
+
         return polydata
     
     def draw_board(self):
@@ -87,7 +92,7 @@ class Board:
         
 if __name__ == "__main__":
     board = Board.from_cad_file("../test schematics/hello_light/exports/hello_light.cad")
-    board.draw_board()
+    # board.draw_board()
 
     polydata = vt.new_polydata()
     polydata = board.to_vtk(polydata)

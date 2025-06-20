@@ -2,6 +2,7 @@ import copy
 import re
 
 import matplotlib.axis as maxis
+import vtk
 
 from Component.Arc import Arc
 from Component.Circle import Circle
@@ -135,6 +136,12 @@ class Shape:
 
         shape = cls(short_name, type_name, pins, lines, arcs, circles)
         return shape, pre_lines + post_lines
+
+    def to_vtk(self, polydata: vtk.vtkPolyData) -> vtk.vtkPolyData:
+        for pin in self.pins:
+            pin.to_vtk(polydata)
+
+        return polydata
     
     def draw(self, ax: maxis.Axis):
         for line in self.lines:

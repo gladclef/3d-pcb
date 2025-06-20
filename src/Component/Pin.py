@@ -4,9 +4,13 @@ import re
 import matplotlib.axis as maxis
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.spatial.transform import Rotation
+import vtk
 
 from tool.units import *
 import Geometry.geometry_tools as geo
+from Trace.VtkPointGroup import VtkPointGroup
+import tool.vtk_tools as vt
 
 class Pin:
     """Represents a single pad or via for a component shape."""
@@ -110,6 +114,27 @@ class Pin:
 
         pin = cls(pad_name, x_offset, y_offset, layer)
         return pin, ret_lines
+
+    def to_vtk(self, polydata: vtk.vtkPolyData) -> vtk.vtkPolyData:
+        vtk_points: vtk.vtkPoints = polydata.GetPoints()
+        vtk_cells: vtk.vtkCellData = polydata.GetCellData()
+        radius = 0.4
+
+        # build the cylinder
+        cylinder = vtk.vtkCylinderSource()
+        cylinder.SetRadius(radius)
+        cylinder.SetHeight(2)
+        cylinder.SetResolution(32)
+        cylinder.CappingOn()
+        cylinder.Update()
+
+        # join the cylinder with the input polydata
+        cylinder_polydata = cylinder.GetOutput()
+        vt.rotate(cylinder_polydata, Rotation.from_euler('x', np.pi/2))
+        vt.translate(cylinder_polydata, (self.x_offset, self.y_offset, 0))
+        vt.join(polydata, cylinder_polydata)
+        
+        return polydata
 
     def draw(self, ax: maxis.Axis):
         center = (self.x_offset, self.y_offset)
