@@ -115,7 +115,26 @@ def triangulate_quads(polydata: vtk.vtkPolyData):
     # Replace the old polys with new_polys in polydata
     polydata.SetPolys(new_polys)
 
-def calculate_point_normals(polydata, start_idx=-1, end_idx=-1):
+def set_point_normals(polydata: vtk.vtkPolyData, new_normals: vtk.vtkFloatArray, start_idx=-1, end_idx=-1):
+    point_data = polydata.GetPointData()
+    point_normals: vtk.vtkDoubleArray = point_data.GetNormals()
+    if point_normals is None:
+        point_normals = vtk.vtkDoubleArray()
+        point_normals.SetNumberOfComponents(3)
+    if point_normals.GetNumberOfTuples() < polydata.GetNumberOfPoints():
+        point_normals.SetNumberOfTuples(polydata.GetNumberOfPoints())
+
+    if start_idx < 0:
+        start_idx = 0
+    if end_idx < 0:
+        end_idx = min(start_idx + new_normals.GetNumberOfTuples(), polydata.GetNumberOfPoints())
+
+    for i in range(end_idx - start_idx):
+        point_normals.SetTuple3(i + start_idx, *new_normals.GetTuple3(i))
+    
+    point_data.SetNormals(point_normals)
+
+def calculate_point_normals(polydata, start_idx=-1, end_idx=-1, from_point: tuple[float, float, float]=None):
     """
     Calculate point normals that point away from the centroid of the polydata.
 
@@ -152,17 +171,21 @@ def calculate_point_normals(polydata, start_idx=-1, end_idx=-1):
         polydata.GetPoint(i) for i in range(start_idx, end_idx)
     ])
 
-    # Calculate centroid (average point location)
-    centroid = np.mean(points, axis=0)
+    # Choose the ray casting point
+    # (calculating normals is hard, just use rays from the centroid)
+    if from_point is None:
+        centroid = np.mean(points, axis=0)
+        from_point = centroid
+    from_point = np.array(from_point)
 
     # Calculate normals pointing away from centroid
     for i, point in enumerate(points):
-        normal = point - centroid
+        normal = point - from_point
         normal /= np.linalg.norm(normal)  # Normalize the vector to unit length
         normals.SetTuple3(i, *normal)
 
     # Assign the normals array to the polydata's point data
-    polydata.GetPointData().SetNormals(normals)
+    set_point_normals(polydata, normals, start_idx, end_idx)
 
 def new_polydata() -> vtk.vtkPolyData:
     # Create vtkPolyData and set points and cells
@@ -195,7 +218,7 @@ def translate(polydata: vtk.vtkPolyData, translation: tuple[float, float, float]
         tx, ty, tz = x+translation[0], y+translation[1], z+translation[2]
         verts.SetPoint(vi, (tx, ty, tz))
 
-def join(polydata1: vtk.vtkPolyData, polydata2: vtk.vtkPolyData):
+def join(polydata1: vtk.vtkPolyData, polydata2: vtk.vtkPolyData, *other_polydatas: vtk.vtkPolyData):
     """ Merges polydata2 into polydata1 by adding new verticies and associated cells. """
     v1, c1 = verts_and_cells(polydata1)
     v2, c2 = verts_and_cells(polydata2)
@@ -204,6 +227,7 @@ def join(polydata1: vtk.vtkPolyData, polydata2: vtk.vtkPolyData):
     start_idx = v1.GetNumberOfPoints()
     for vi in range(v2.GetNumberOfPoints()):
         v1.InsertNextPoint(v2.GetPoint(vi))
+    set_point_normals(polydata1, polydata2.GetPointData().GetNormals(), start_idx)
 
     # insert cells
     for ci in range(c2.GetNumberOfCells()):
@@ -241,4 +265,6 @@ def join(polydata1: vtk.vtkPolyData, polydata2: vtk.vtkPolyData):
         else:
             raise RuntimeError(f"In vtk_tools.join(): unknown cell type with {cell.GetNumberOfIds()} ids")
 
-    # TODO, assign vertex/cell normals
+    # join the other polydatas
+    for other_polydata in other_polydatas:
+        join(polydata1, other_polydata)

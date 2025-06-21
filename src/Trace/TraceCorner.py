@@ -95,6 +95,7 @@ class TraceCorner(PathCorner, PntInc):
         for xy_idx in range(self.n_points):
             vtk_group = self.get_vtk_group(xy_idx)
             vtk_group.add_missing_vtk_points(polydata)
+            vt.calculate_point_normals(polydata, vtk_group.vtk_idx_0, vtk_group.vtk_idx_n)
 
         # connect the adjacent loops with quads
         for a in range(self.n_points - 1):

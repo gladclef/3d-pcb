@@ -26,6 +26,10 @@ class VtkPointGroup(PntInc):
     def vtk_idx_0(self) -> int | None:
         return self.vtk_indices[0]
 
+    @property
+    def vtk_idx_n(self) -> int | None:
+        return self.vtk_indices[-1]
+
     def add_missing_vtk_points(self, polydata: vtk.vtkPolyData):
         vtk_points: vtk.vtkPoints = polydata.GetPoints()
 

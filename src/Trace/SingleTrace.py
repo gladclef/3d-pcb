@@ -147,8 +147,10 @@ class SingleTrace(AbstractTrace):
         
         # Assign point normals
         start_idx = min(va.vtk_idx_0, vb.vtk_idx_0)
+        mid_idx = va.vtk_idx_0 if start_idx == vb.vtk_idx_0 else vb.vtk_idx_0
         end_idx = max(max(va.vtk_indices), max(vb.vtk_indices)) + 1
-        vt.calculate_point_normals(polydata, start_idx, end_idx)
+        vt.calculate_point_normals(polydata, start_idx, mid_idx)
+        vt.calculate_point_normals(polydata, mid_idx, end_idx)
     
     def inc_vtk_indicies(self, start: int, cnt: int):
         for segment_points in self._xypnt_vtk_verticies.values():
