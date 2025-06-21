@@ -131,7 +131,7 @@ class Pin:
         # join the cylinder with the input polydata
         cylinder_polydata = cylinder.GetOutput()
         vt.rotate(cylinder_polydata, Rotation.from_euler('x', np.pi/2))
-        vt.translate(cylinder_polydata, (self.x_offset, self.y_offset, 0))
+        vt.translate(cylinder_polydata, (self.x_offset, self.y_offset, -1))
         vt.join(polydata, cylinder_polydata)
         
         return polydata

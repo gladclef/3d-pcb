@@ -257,8 +257,8 @@ class PipeBasicCircle(PipeShape):
         max_radius = max_radius if max_radius is not None else BREADBOARD_SPACING-NOZZLE_DIAMETER
         
         # compute sizes
-        radius = min(max_radius, wire_diameter*1.1)
-        opening_radius = wire_diameter*0.85
+        radius = min(max_radius, wire_radius*1.1)
+        opening_radius = wire_radius*0.85
         center = [0, -radius-LAYER_HEIGHT]
 
         # opening
@@ -282,7 +282,7 @@ class PipeBasicCircle(PipeShape):
 
             xz_pointz.append([x, z])
 
-        super().__init__(xz_pointz, symetric_about_x=False, symetric_about_z=True)
+        super().__init__(xz_pointz, symetric_about_x=False, symetric_about_z=False)
     
 class PipeDebug(PipeShape):
     """

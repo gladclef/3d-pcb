@@ -28,7 +28,11 @@ class Path:
         ordered_xy_points = self._get_xy_points_in_segment_order(new_segments)
 
         # build the list of segments a second time, now that the points can be ordered
-        new_segments_idxs = [(ordered_xy_points.index(s.xy1), ordered_xy_points.index(s.xy2)) for s in new_segments]
+        new_segments_idxs = []
+        for s in new_segments:
+            idx1 = ordered_xy_points.index(s.xy1)
+            idx2 = ordered_xy_points.index(s.xy2)
+            new_segments_idxs.append(tuple(sorted([idx1, idx2])))
         self._xy_points = ordered_xy_points
         self._xypntindicies_2_segments = self._build_segments(ordered_xy_points, new_segments_idxs)
     
@@ -146,28 +150,33 @@ class Path:
         """
         ordered_xy_points = []
 
-        prev_segment: LineSegment = None
-        for segment_idx, segment in enumerate(segments):
-            if prev_segment is not None:
-                if prev_segment.xy1 in [segment.xy1, segment.xy2]:
-                    xy_common, xy_other = prev_segment.xy1, prev_segment.xy2
-                else:
-                    assert prev_segment.xy2 in [segment.xy1, segment.xy2]
-                    xy_common, xy_other = prev_segment.xy2, prev_segment.xy1
-
-                if segment_idx == 1:
-                    # special case, first segment
-                    ordered_xy_points.append(xy_other)
-
-                ordered_xy_points.append(xy_common)
-
-            prev_segment = segment
+        if len(segments) == 1:
+            # special case: only one segment
+            ordered_xy_points = [segments[0].xy1, segments[0].xy2]
         
-        # special case, last segment
-        if segment.xy1 == ordered_xy_points[-1]:
-            ordered_xy_points.append(segment.xy2)
         else:
-            assert prev_segment.xy2 == ordered_xy_points[-1]
-            ordered_xy_points.append(segment.xy1)
+            prev_segment: LineSegment = None
+            for segment_idx, segment in enumerate(segments):
+                if prev_segment is not None:
+                    if prev_segment.xy1 in [segment.xy1, segment.xy2]:
+                        xy_common, xy_other = prev_segment.xy1, prev_segment.xy2
+                    else:
+                        assert prev_segment.xy2 in [segment.xy1, segment.xy2]
+                        xy_common, xy_other = prev_segment.xy2, prev_segment.xy1
+
+                    if segment_idx == 1:
+                        # special case, first segment
+                        ordered_xy_points.append(xy_other)
+
+                    ordered_xy_points.append(xy_common)
+
+                prev_segment = segment
+            
+            # special case, last segment
+            if segment.xy1 == ordered_xy_points[-1]:
+                ordered_xy_points.append(segment.xy2)
+            else:
+                assert segment.xy2 == ordered_xy_points[-1]
+                ordered_xy_points.append(segment.xy1)
         
         return ordered_xy_points

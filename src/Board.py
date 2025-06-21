@@ -1,3 +1,4 @@
+import copy
 from typing import TypeVar
 
 import pyvista
@@ -56,15 +57,19 @@ class Board:
         board = cls(gencad_file, traces, shapes, components)
         return board
 
-    def to_vtk(self, polydata: vtk.vtkPolyData) -> vtk.vtkPolyData:
+    def to_vtk(self) -> tuple[vtk.vtkPolyData, vtk.vtkPolyData]:
+        traces_polydata = vt.new_polydata()
+        component_polydata = vt.new_polydata()
+
         for trace in self.traces:
-            trace.to_vtk(polydata)
+            trace = copy.deepcopy(trace)
+            trace.to_vtk(traces_polydata)
 
         for component in self.components:
             component = component.get_transformed()
-            component.to_vtk(polydata)
+            component.to_vtk(component_polydata)
 
-        return polydata
+        return traces_polydata, component_polydata
     
     def draw_board(self):
         """
@@ -95,10 +100,16 @@ if __name__ == "__main__":
     board.draw_board()
 
     polydata = vt.new_polydata()
-    polydata = board.to_vtk(polydata)
+    traces_pd, component_pd = board.to_vtk()
+    vt.join(polydata, traces_pd)
+    vt.join(polydata, component_pd)
 
     print(f"{polydata.GetNumberOfPoints()=}")
     test_trace_mesh = pyvista.PolyData(polydata)
     pyvista.global_theme.allow_empty_mesh = True
     test_trace_mesh.plot(show_edges=True, opacity=1, show_vertices=True)
     # pyvista.PolyDataFilters.plot_normals(test_trace_mesh, mag=0.5, flip=False, faces=False, show_edges=True, opacity=0.95, show_verticies=True)
+
+    pyvista.PolyData(traces_pd).save("test_trace_traces.stl")
+    pyvista.PolyData(component_pd).save("test_trace_vias.stl")
+    test_trace_mesh.save("test_trace.stl")
