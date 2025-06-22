@@ -47,7 +47,7 @@ class SingleTrace(AbstractTrace):
         bend_radius : float, optional
             Radius for rounding out trace bends in millimeters. Trace segment
             intersections will be rounded out using TraceCorners to match this
-            bend radius. By default 1.
+            bend radius. By default TRACE_CORNER_RADIUS.
         allow_overlap : bool, optional
             If True, overlapping segments are allowed, by default False.
         """
@@ -55,7 +55,7 @@ class SingleTrace(AbstractTrace):
 
         # set some defaults
         if bend_radius is None:
-            bend_radius = 1
+            bend_radius = g.TRACE_CORNER_RADIUS
 
         self._xypnt_vtk_verticies: dict[tuple[float, float], VtkPointGroup] = {}
         """ Dictionary from xy point index to vtk points. """
@@ -295,7 +295,8 @@ class SingleTrace(AbstractTrace):
             Shape to extrude along the trace's path, or None to use the
             DEFAULT_PIPE_SHAPE. By default None.
         bend_radius : float, optional
-            Radius for rounding out trace bends in millimeters, by default 1.
+            Radius for rounding out trace bends in millimeters,
+            by default TRACE_CORNER_RADIUS.
 
         Returns
         -------

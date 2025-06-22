@@ -42,30 +42,34 @@ class _Globals:
         Size of the drill holes used for through-hole mounted components.
         Default is 0.4 millimeters.
         """
+        self.TRACE_CORNER_RADIUS = 3.0
+        """
+        The radius of bends for the trace corners in millimeters.
+        """
 
         ##################
         # tunable values #
         ##################
 
-        self.TRACE_OPENING_CLEARANCE = 0.2
+        self.TRACE_OPENING_CLEARANCE = 0.6
         """
         Additional value added to (or subtraced from) the trace opening, which
         is otherwise based on the WIRE_DIAMETER. Increasing this value will
         make it easier to place wires into the circuit board.
         """
-        self.TRACE_DIAMETER_CLEARANCE = 0.1
+        self.TRACE_DIAMETER_CLEARANCE = 0.6
         """
         Additional value added to (or subtraced from) the trace diameter, which
         is otherwise based on the WIRE_DIAMETER. Increasing this value will
         make it more likely that the wire will comfortably sit in its trace and
         slide through the trace more easily.
         """
-        self.VIA_DIAMETER_CLEARANCE = 0.1
+        self.VIA_DIAMETER_CLEARANCE = 0.6
         """
         Additional value added to (or subtraced from) the via diameter.
         Increasing this value will make it easier to fit wires through the vias.
         """
-        self.THROUGH_HOLE_DIAMETER_CLEARANCE = 0.1
+        self.THROUGH_HOLE_DIAMETER_CLEARANCE = 0.6
         """
         Additional value added to (or subtraced from) the drill hole diameter.
         Increasing this value will make it easier to fit through-hole components
