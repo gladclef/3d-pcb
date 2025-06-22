@@ -7,20 +7,24 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 import vtk
 
+from Component.DrillHole import DrillHole
 from tool.units import *
 import Geometry.geometry_tools as geo
 from Trace.VtkPointGroup import VtkPointGroup
+from tool.globals import board_parameters as g
 import tool.vtk_tools as vt
 
-class Pin:
-    """Represents a single pad or via for a component shape."""
+class Pin(DrillHole):
+    """Represents a single through hole for a component shape."""
 
-    def __init__(self, pad_name: str, x_offset: float, y_offset: float, layer: str):
+    def __init__(self, parent: "Shape", pad_name: str, x_offset: float, y_offset: float, layer: str, is_pad=False):
         """
         Initialize the Pin instance.
 
         Parameters
         ----------
+        parent : Shape
+            The shape that contains this pin.
         pad_name : str
             The name of the pad stack for this pin.
         x_offset : float
@@ -29,16 +33,20 @@ class Pin:
             The y offset of the pin from its origin.
         layer : str
             The layer on which the pin is placed. Example "TOP" or "BOTTOM"
+        is_pad : bool
+            True if this instance is a pad, or False if it's a through-hole.
 
         """
+        super().__init__(x_offset, y_offset, is_through_hole=True)
+
+        self.parent = parent
+        """The shape that contains this pin."""
         self.pad_name = pad_name
         """The name of the pin."""
-        self.x_offset = x_offset
-        """The x offset of the pin from its origin."""
-        self.y_offset = y_offset
-        """The y offset of the pin from its origin."""
         self.layer = layer
         """The layer on which the pin is placed."""
+        self.is_pad = is_pad
+        """True if this instance is a pad, or False if it's a through-hole."""
 
     def apply_translation_rotation_layer(self, translation: tuple[float, float], rotation: float, is_bottom: bool) -> "Pin":
         """
@@ -59,11 +67,9 @@ class Pin:
             A new Pin instance with the applied transformations.
 
         """
-        x, y = self.x_offset, self.y_offset
-        x, y = geo.apply_translation_rotation_flip((x, y), translation, rotation, is_bottom)
-
         ret = copy.deepcopy(self)
-        ret.x_offset, ret.y_offset = x, y
+
+        super(self.__class__, ret).apply_translation_rotation_layer(translation, rotation, is_bottom)
 
         return ret
 
@@ -112,30 +118,6 @@ class Pin:
         x_offset = in2mm(float(x_offset))
         y_offset = in2mm(float(y_offset))
 
-        pin = cls(pad_name, x_offset, y_offset, layer)
+        parent = None
+        pin = cls(parent, pad_name, x_offset, y_offset, layer)
         return pin, ret_lines
-
-    def to_vtk(self, polydata: vtk.vtkPolyData) -> vtk.vtkPolyData:
-        vtk_points: vtk.vtkPoints = polydata.GetPoints()
-        vtk_cells: vtk.vtkCellData = polydata.GetCellData()
-        radius = 0.4
-
-        # build the cylinder
-        cylinder = vtk.vtkCylinderSource()
-        cylinder.SetRadius(radius)
-        cylinder.SetHeight(2)
-        cylinder.SetResolution(32)
-        cylinder.CappingOn()
-        cylinder.Update()
-
-        # join the cylinder with the input polydata
-        cylinder_polydata = cylinder.GetOutput()
-        vt.rotate(cylinder_polydata, Rotation.from_euler('x', np.pi/2))
-        vt.translate(cylinder_polydata, (self.x_offset, self.y_offset, -1))
-        vt.join(polydata, cylinder_polydata)
-        
-        return polydata
-
-    def draw(self, ax: maxis.Axis):
-        center = (self.x_offset, self.y_offset)
-        ax.add_patch(plt.Circle(center, .3, color="tab:orange"))

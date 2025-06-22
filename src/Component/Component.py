@@ -80,7 +80,8 @@ class Component:
         """
         for shape in available_shapes:
             if shape.full_name == self.shape_name:
-                self.shape = shape
+                self.shape = copy.deepcopy(shape)
+                self.shape.parent = self
                 return True
         return False
 

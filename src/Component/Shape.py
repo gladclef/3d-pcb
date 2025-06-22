@@ -15,10 +15,12 @@ class Shape:
     A class representing an electronic component's shape.
     """
 
-    def __init__(self, short_name: str, type_name: str, pins: list[Pin], lines: list[Line], arcs: list[Arc], circles: list[Circle]):
+    def __init__(self, parent: "Component", short_name: str, type_name: str, pins: list[Pin], lines: list[Line], arcs: list[Arc], circles: list[Circle]):
         """
         Parameters
         ----------
+        parent : Component
+            The component that contains this shape.
         short_name : str
             Short name of the shape.
         type_name : str
@@ -26,6 +28,8 @@ class Shape:
         pins : list[Pin]
             List of `Pin` objects associated with this shape. Can be pads or vias.
         """
+        self.parent = parent
+        """The component that contains this shape."""
         self.short_name = short_name
         """Short name of the shape."""
         self.type_name = type_name
@@ -38,6 +42,9 @@ class Shape:
         """List of `Arc` objects for outlining this shape."""
         self.circles = circles
         """List of `Circle` objects for outlining this shape."""
+
+        for pin in self.pins:
+            pin.parent = self
 
     @property
     def full_name(self) -> str:
@@ -134,7 +141,8 @@ class Shape:
         arcs, unmatched_lines = children_from_cad_file(Arc, unmatched_lines)
         circles, unmatched_lines = children_from_cad_file(Circle, unmatched_lines)
 
-        shape = cls(short_name, type_name, pins, lines, arcs, circles)
+        parent = None
+        shape = cls(parent, short_name, type_name, pins, lines, arcs, circles)
         return shape, pre_lines + post_lines
 
     def to_vtk(self, polydata: vtk.vtkPolyData) -> vtk.vtkPolyData:

@@ -266,7 +266,7 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
     from Trace.SingleTrace import SingleTrace
-    from Trace.PipeShape import PipeBasicCircle
+    from Trace.PipeShape import DEFAULT_PIPE_SHAPE
     from tool.units import *
 
     vidframes_out = open("output/renders/input.txt", "w")
@@ -288,7 +288,7 @@ if __name__ == "__main__":
             [0, 1],
             [1, 2]
         ]
-        shape = PipeBasicCircle(awg2mm(26))
+        shape = DEFAULT_PIPE_SHAPE(awg2mm(26))
         trace = SingleTrace(xy_points, segments, shape)
         corner = PathCorner(trace, trace.segments, 1)
 

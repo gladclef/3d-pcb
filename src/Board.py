@@ -44,6 +44,7 @@ class Board:
             return ret, unmatched_lines
 
         traces, lines = get_instances(SingleTrace, lines)
+        traces: list[SingleTrace] = traces
         pre_lines, shapes_lines, post_lines = shapes_helper.get_next_region(lines)
         lines = pre_lines + post_lines
         shapes: list[Shape] = get_instances(Shape, shapes_lines)[0]
@@ -53,23 +54,26 @@ class Board:
 
         for component in components:
             component.assign_shape(shapes)
+        for trace in traces:
+            trace.add_trace_end_pins(components)
         
         board = cls(gencad_file, traces, shapes, components)
         return board
 
     def to_vtk(self) -> tuple[vtk.vtkPolyData, vtk.vtkPolyData]:
         traces_polydata = vt.new_polydata()
+        vias_polydata = vt.new_polydata()
         component_polydata = vt.new_polydata()
 
         for trace in self.traces:
             trace = copy.deepcopy(trace)
-            trace.to_vtk(traces_polydata)
+            trace.to_vtk(traces_polydata, vias_polydata)
 
         for component in self.components:
             component = component.get_transformed()
             component.to_vtk(component_polydata)
 
-        return traces_polydata, component_polydata
+        return traces_polydata, vias_polydata, component_polydata
     
     def draw_board(self):
         """
@@ -100,8 +104,9 @@ if __name__ == "__main__":
     board.draw_board()
 
     polydata = vt.new_polydata()
-    traces_pd, component_pd = board.to_vtk()
+    traces_pd, vias_pd, component_pd = board.to_vtk()
     vt.join(polydata, traces_pd)
+    vt.join(polydata, vias_pd)
     vt.join(polydata, component_pd)
 
     print(f"{polydata.GetNumberOfPoints()=}")
@@ -111,5 +116,6 @@ if __name__ == "__main__":
     # pyvista.PolyDataFilters.plot_normals(test_trace_mesh, mag=0.5, flip=False, faces=False, show_edges=True, opacity=0.95, show_verticies=True)
 
     pyvista.PolyData(traces_pd).save("test_trace_traces.stl")
-    pyvista.PolyData(component_pd).save("test_trace_vias.stl")
+    pyvista.PolyData(vias_pd).save("test_trace_vias.stl")
+    pyvista.PolyData(component_pd).save("test_trace_components.stl")
     test_trace_mesh.save("test_trace.stl")

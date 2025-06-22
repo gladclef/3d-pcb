@@ -6,22 +6,12 @@ from scipy.spatial.transform import Rotation
 import vtk
 from vtk.util import numpy_support # type: ignore
 
+from tool.globals import board_parameters as g
 from tool.units import *
 import tool.vtk_tools as vt
 
-BREADBOARD_SPACING=in2mm(0.1)
-NOZZLE_DIAMETER=0.4
-LAYER_HEIGHT=0.1
-
 class PipeShape:
-    def __init__(self, xz_pointz: list[list[float]], symetric_about_x=False, symetric_about_z=True):
-        global BREADBOARD_SPACING
-        global NOZZLE_DIAMETER
-        global LAYER_HEIGHT
-        self.BREADBOARD_SPACING = BREADBOARD_SPACING
-        self.NOZZLE_DIAMETER = NOZZLE_DIAMETER
-        self.LAYER_HEIGHT = LAYER_HEIGHT
-        
+    def __init__(self, xz_pointz: list[list[float]], symetric_about_x=False, symetric_about_z=True):        
         self.symetric_about_x = symetric_about_x
         self.symetric_about_z = symetric_about_z
         self._xz_pointz = xz_pointz
@@ -209,24 +199,20 @@ class PipeBasicBox(PipeShape):
         max_box_width : float, optional
             The maximum width of the internal box structure, by default BREADBOARD_SPACING-NOZZLE_DIAMETER.
         """
-        global BREADBOARD_SPACING
-        global NOZZLE_DIAMETER
-        global LAYER_HEIGHT
-
         wire_radius = wire_diameter / 2
         xz_pointz: list[list[float]] = []
 
         # assign default values
-        lip_height = lip_height if lip_height is not None else LAYER_HEIGHT*2
-        max_box_width = max_box_width if max_box_width is not None else BREADBOARD_SPACING-NOZZLE_DIAMETER
+        lip_height = lip_height if lip_height is not None else g.LAYER_HEIGHT*2
+        max_box_width = max_box_width if max_box_width is not None else g.BREADBOARD_SPACING - g.NOZZLE_DIAMETER
 
         # opening
         xz_pointz.append([wire_radius, 0])
         xz_pointz.append([wire_radius, -lip_height])
 
         # box
-        box_radius = min(max(wire_diameter*1.5, NOZZLE_DIAMETER), max_box_width)
-        box_height = min(wire_diameter, LAYER_HEIGHT)
+        box_radius = min(max(wire_diameter*1.5 + g.TRACE_DIAMETER_CLEARANCE, g.NOZZLE_DIAMETER + g.TRACE_DIAMETER_CLEARANCE), max_box_width)
+        box_height = max(wire_diameter + g.TRACE_DIAMETER_CLEARANCE, g.LAYER_HEIGHT)
         xz_pointz.append([box_radius, -lip_height])
         xz_pointz.append([box_radius, -lip_height-box_height])
 
@@ -246,20 +232,16 @@ class PipeBasicCircle(PipeShape):
         max_radius : float, optional
             The maximum width of the circular structure, by default BREADBOARD_SPACING-NOZZLE_DIAMETER.
         """
-        global BREADBOARD_SPACING
-        global NOZZLE_DIAMETER
-        global LAYER_HEIGHT
-
         wire_radius = wire_diameter / 2
         xz_pointz: list[list[float]] = []
 
         # assign default values
-        max_radius = max_radius if max_radius is not None else BREADBOARD_SPACING-NOZZLE_DIAMETER
+        max_radius = max_radius if max_radius is not None else g.BREADBOARD_SPACING - g.NOZZLE_DIAMETER
         
         # compute sizes
-        radius = min(max_radius, wire_radius*1.1)
-        opening_radius = wire_radius*0.85
-        center = [0, -radius-LAYER_HEIGHT]
+        radius = min(wire_radius*1.1 + g.TRACE_DIAMETER_CLEARANCE/2, max_radius)
+        opening_radius = (wire_radius + g.TRACE_OPENING_CLEARANCE)/2
+        center = [0, -(radius + g.LAYER_HEIGHT)]
 
         # opening
         opening_intersection_angle = np.arccos(opening_radius/2)
@@ -303,3 +285,4 @@ class PipeDebug(PipeShape):
 
         super().__init__(xz_pointz, symetric_about_x=False, symetric_about_z=True)
 
+DEFAULT_PIPE_SHAPE = PipeBasicCircle
