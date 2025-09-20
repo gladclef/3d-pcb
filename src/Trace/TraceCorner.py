@@ -3,7 +3,7 @@ import pyvista
 from scipy.spatial.transform import Rotation
 import vtk
 from vtk.util import numpy_support # type: ignore
-from vtkbool import vtkBool
+#from vtkbool import vtkBool
 
 from Trace.AbstractTrace import AbstractTrace
 from Trace.AbstractVtkPointTracker import AbstractVtkPointTracker as PntInc
