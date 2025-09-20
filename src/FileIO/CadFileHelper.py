@@ -1,5 +1,7 @@
 import re
 
+from FileIO.Line import Line as FLine
+
 class CadFileHelper:
     """
     Assistant class to help parse gencad files, such as those exported by KiCad.
@@ -25,13 +27,13 @@ class CadFileHelper:
         self.ignore_false_endings = ignore_false_endings
         """ Whether to ignore lines matching `end_tag` when not in a region. """
 
-    def _matches(self, line: str, tag: str | re.Pattern) -> bool:
+    def _matches(self, line: FLine, tag: str | re.Pattern) -> bool:
         """
         Check if the given line matches the specified tag or pattern.
 
         Parameters
         ----------
-        line : str
+        line : FLine
             The line to check.
         tag : str or re.Pattern
             The tag or pattern to match against.
@@ -42,7 +44,7 @@ class CadFileHelper:
             True if the line matches the tag, False otherwise.
 
         """
-        sline = line.strip()
+        sline = line.v.strip()
 
         if isinstance(tag, str):
             return sline == tag
@@ -51,13 +53,13 @@ class CadFileHelper:
             match = tag.match(sline)
             return match is not None
 
-    def start_matches(self, line: str) -> bool:
+    def start_matches(self, line: FLine) -> bool:
         """
         Check if the given line matches the start tag.
 
         Parameters
         ----------
-        line : str
+        line : FLine
             The line to check.
 
         Returns
@@ -68,13 +70,13 @@ class CadFileHelper:
         """
         return self._matches(line, self.start_tag)
 
-    def end_matches(self, line: str) -> bool:
+    def end_matches(self, line: FLine) -> bool:
         """
         Check if the given line matches the end tag.
 
         Parameters
         ----------
-        line : str
+        line : FLine
             The line to check.
 
         Returns
@@ -85,22 +87,22 @@ class CadFileHelper:
         """
         return self._matches(line, self.end_tag)
 
-    def get_next_region(self, lines: list[str]) -> tuple[list[str], list[str], list[str]]:
+    def get_next_region(self, lines: list[FLine]) -> tuple[list[FLine], list[FLine], list[FLine]]:
         """
         Find the next region in the given lines as defined by the start and end tags.
 
         Parameters
         ----------
-        lines : list[str]
+        lines : list[FLine]
             The lines in the file to search through.
 
         Returns
         -------
-        pre_lines: list[str]
+        pre_lines: list[FLine]
             The lines that come before the region.
-        region_lines: list[str]
+        region_lines: list[FLine]
             The lines for the first found region, including the start and end tag lines.
-        post_lines: list[str]
+        post_lines: list[FLine]
             The lines that come after the region.
 
         Raises

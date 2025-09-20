@@ -1,6 +1,7 @@
 import copy
 from typing import TYPE_CHECKING
 
+from FileIO.Line import Line as FLine
 from Geometry.LineSegment import LineSegment
 
 
@@ -11,8 +12,13 @@ class Path:
     A path consists of back-to-back line segments.
     """
 
-    def __init__(self, xy_points: list[tuple[float, float]], segments: list[tuple[int, int]] | list[LineSegment]):
+    def __init__(self,
+                 source_lines: list[FLine],
+                 xy_points: list[tuple[float, float]],
+                 segments: list[tuple[int, int] | tuple[int, int, FLine]] | list[LineSegment]
+    ):
         # sanity check/normalize input
+        assert isinstance(source_lines, list) and isinstance(source_lines[0], FLine)
         new_xy_points = []
         for xy_idx, xy in enumerate(xy_points):
             txy = xy if isinstance(xy, tuple) else tuple(xy)
@@ -21,6 +27,8 @@ class Path:
             except:
                 raise ValueError(f"Error in {self.__class__.__name__}(): " + f"expected xy_points to be a list of 2 tuples, but value at xy_points[{xy_idx}]={xy}")
             new_xy_points.append(txy)
+
+        self.source_lines = source_lines
 
         # build the list of segments the first time, to get the ordered points
         xypntindicies_2_segments = self._build_segments(xy_points, segments)
@@ -89,7 +97,7 @@ class Path:
                 return s[0]
     
     @staticmethod
-    def _build_segment(xy_points: list[tuple[float, float]], segment: tuple[int, int]) -> LineSegment:
+    def _build_segment(xy_points: list[tuple[float, float]], segment: tuple[int, int] | tuple[int, int, FLine], source_line: FLine = None) -> LineSegment:
         """
         Builds a LineSegment from two XY points.
 
@@ -107,12 +115,13 @@ class Path:
         """
         x1, y1 = xy_points[segment[0]]
         x2, y2 = xy_points[segment[1]]
-        return LineSegment((x1, y1), (x2, y2))
+        source_line = None if len(segment) < 3 else segment[2]
+        return LineSegment((x1, y1), (x2, y2), source_line=source_line)
 
     @classmethod
     def _build_segments(cls,
                         xy_points: list[tuple[float, float]], 
-                        segments: list[tuple[int, int]] | list[LineSegment],
+                        segments: list[tuple[int, int] | tuple[int, int, FLine]] | list[LineSegment]
     ) -> list[tuple[tuple[tuple, tuple], LineSegment]]:
         """
         Builds the internal representation of this Path from a list of segments.

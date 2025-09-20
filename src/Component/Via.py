@@ -57,7 +57,7 @@ class Via(DrillHole):
         return ret
 
     @classmethod
-    def from_cad_file(cls, lines: list[str]) -> tuple["Via", list[str]]:
+    def from_cad_file(cls, lines: list[str]) -> tuple[list["Via"], list[str]]:
         """
         Create a Via instance by parsing lines from a CAD file.
 
@@ -79,4 +79,4 @@ class Via(DrillHole):
         """
         # TODO
         print("TODO: import vias from gencad files")
-        return None, lines
+        return [], lines

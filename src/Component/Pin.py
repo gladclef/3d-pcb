@@ -9,6 +9,7 @@ import vtk
 
 from Component.DrillHole import DrillHole
 from tool.units import *
+from FileIO.Line import Line as FLine
 import Geometry.geometry_tools as geo
 from Trace.VtkPointGroup import VtkPointGroup
 from tool.globals import board_parameters as g
@@ -74,18 +75,18 @@ class Pin(DrillHole):
         return ret
 
     @classmethod
-    def from_cad_file(cls, lines: list[str]) -> tuple["Pin", list[str]]:
+    def from_cad_file(cls, lines: list[FLine]) -> tuple[list["Pin"], list[FLine]]:
         """
         Create a Pin instance by parsing lines from a CAD file.
 
         Parameters
         ----------
-        lines : list[str]
+        lines : list[FLine]
             Lines of text representing the pin in a CAD file.
 
         Returns
         -------
-        tuple[Pin, list[str]]
+        tuple[Pin, list[FLine]]
             A tuple containing the created Pin and any remaining unprocessed lines.
 
         Raises
@@ -99,20 +100,21 @@ class Pin(DrillHole):
 
         pin_line = None
         for line_idx, line in enumerate(lines):
-            if line.startswith("PIN"):
+            if line.v.startswith("PIN"):
                 pin_line = line
                 ret_lines = lines[:line_idx] + lines[line_idx+1:]
                 break
         if pin_line is None:
-            return None, lines
+            return [], lines
         
         # regex explanation:                   pad num  x offset   y offset   layer   ???        ???
         pin_pattern = re.compile(r"PIN \"\d+\" (PAD\d+) ([-\d\.]+) ([-\d\.]+) ([^ ]+) ([-\d\.]+) ([-\d\.]+)")
 
         # break out the various parts of the pin line
-        match = pin_pattern.match(pin_line)
+        # print(pin_line.v.strip())
+        match = pin_pattern.match(pin_line.v.strip())
         if match is None:
-            raise RuntimeError("Error in Pin.from_cad_file(): failed to match pin_pattern to line:\n\t" + pin_line)
+            raise RuntimeError("Error in Pin.from_cad_file(): failed to match pin_pattern to line:\n\t" + pin_line.v)
 
         pad_name, x_offset, y_offset, layer, _, _ = match.groups()
         x_offset = in2mm(float(x_offset))
@@ -120,4 +122,4 @@ class Pin(DrillHole):
 
         parent = None
         pin = cls(parent, pad_name, x_offset, y_offset, layer)
-        return pin, ret_lines
+        return [pin], ret_lines

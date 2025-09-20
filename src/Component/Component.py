@@ -8,6 +8,7 @@ import vtk
 from Component.Shape import Shape
 from Component.Text import Text
 from FileIO.CadFileHelper import CadFileHelper
+from FileIO.Line import Line as FLine
 from tool.units import *
 
 class Component:
@@ -105,18 +106,18 @@ class Component:
         return ret
 
     @classmethod
-    def from_cad_file(cls, lines: list[str], shapes: list[Shape]=None) -> tuple["Component", list[str]]:
+    def from_cad_file(cls, lines: list[FLine], shapes: list[Shape]=None) -> tuple[list["Component"], list[FLine]]:
         """
         Creates a Component instance by parsing lines from a CAD file.
 
         Parameters
         ----------
-        lines : list[str]
+        lines : list[FLine]
             Lines of text representing the component in a CAD file.
 
         Returns
         -------
-        tuple[Component, list[str]]
+        tuple[Component, list[FLine]]
             A tuple containing the created Component and any remaining unprocessed lines.
         """
         # example component lines:
@@ -133,7 +134,7 @@ class Component:
         helper = CadFileHelper(re.compile(r"COMPONENT.*"), re.compile(r"^(\$ENDCOMPONENTS)?$"), ignore_false_endings=True)
         pre_lines, component_lines, post_lines = helper.get_next_region(lines)
         if len(component_lines) == 0:
-            return None, lines
+            return [], lines
 
         component_name: str = None
         device_name: str = None
@@ -145,27 +146,27 @@ class Component:
         sheet: str = None
 
         for line in component_lines:
-            if line.startswith("COMPONENT"):
-                component_name = line.split('"', 1)[1].rstrip().rstrip('"')
-            elif line.startswith("DEVICE"):
-                device_name = line.split('"', 1)[1].rstrip().rstrip('"')
-            elif line.startswith("PLACE"):
-                place_coords = re.findall(r"[-\d\.]+", line)
+            if line.v.startswith("COMPONENT"):
+                component_name = line.v.split('"', 1)[1].rstrip().rstrip('"')
+            elif line.v.startswith("DEVICE"):
+                device_name = line.v.split('"', 1)[1].rstrip().rstrip('"')
+            elif line.v.startswith("PLACE"):
+                place_coords = re.findall(r"[-\d\.]+", line.v)
                 place = in2mm(float(place_coords[0])), in2mm(float(place_coords[1]))
-            elif line.startswith("LAYER"):
-                layer = line.split(maxsplit=1)[1].strip()
-            elif line.startswith("ROTATION"):
-                rotation = np.deg2rad(float(line.split()[1]))
-            elif line.startswith("SHAPE"):
-                shape_name = re.findall(r'"(.*?)"', line)
+            elif line.v.startswith("LAYER"):
+                layer = line.v.split(maxsplit=1)[1].strip()
+            elif line.v.startswith("ROTATION"):
+                rotation = np.deg2rad(float(line.v.split()[1]))
+            elif line.v.startswith("SHAPE"):
+                shape_name = re.findall(r'"(.*?)"', line.v)
                 if shape_name:
                     shape_name = shape_name[0]
-            elif line.startswith("TEXT"):
-                text, _ = Text.from_cad_file([line])
-                assert text is not None
-                texts.append(text)
-            elif line.startswith("SHEET"):
-                sheet = line.split('"', 1)[1].rstrip().rstrip('"')
+            elif line.v.startswith("TEXT"):
+                new_texts, _ = Text.from_cad_file([line])
+                assert len(new_texts) > 0
+                texts += new_texts
+            elif line.v.startswith("SHEET"):
+                sheet = line.v.split('"', 1)[1].rstrip().rstrip('"')
 
         component = Component(
             component_name,
@@ -180,7 +181,7 @@ class Component:
         if shapes is not None:
             component.assign_shape(shapes)
 
-        return component, pre_lines + post_lines
+        return [component], pre_lines + post_lines
 
     def to_vtk(self, polydata: vtk.vtkPolyData) -> vtk.vtkPolyData:
         self.shape.to_vtk(polydata)

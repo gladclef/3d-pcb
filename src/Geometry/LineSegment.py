@@ -3,15 +3,17 @@ from typing import Union
 from Geometry.Line import Line
 
 import Geometry.geometry_tools as geo
+from FileIO.Line import Line as FLine
 
 
 class LineSegment(Line):
-    def __init__(self, pnt1: tuple[float, float], pnt2: tuple[float, float]):
+    def __init__(self, pnt1: tuple[float, float], pnt2: tuple[float, float], source_line: FLine = None):
         l1 = Line.from_two_points(pnt1, pnt2)
         super().__init__(l1.x, l1.y, l1.y_intercept, l1.x_intercept)
 
         self.pnt1 = pnt1
         self.pnt2 = pnt2
+        self.source_line = source_line
 
     @classmethod
     def from_vector(cls, x: float, y: float, y_intercept: float=None, x_intercept: float=None, length: float=1) -> "LineSegment":

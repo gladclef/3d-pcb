@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import vtk
 
 from Trace.AbstractVtkPointTracker import AbstractVtkPointTracker as PntInc
+from FileIO.Line import Line as FLine
 from Geometry.LineSegment import LineSegment
 from Geometry.Path import Path
 from Trace.PipeShape import PipeShape, DEFAULT_PIPE_SHAPE
@@ -12,8 +13,12 @@ class AbstractTrace(Path, PntInc, ABC):
     """
     Represents a wire trace on a PCB.
     """
-    def __init__(self, xy_points: list[tuple[float, float]], segments: list[tuple[int, int]] | list[LineSegment], shape: PipeShape=None):
-        Path.__init__(self, xy_points, segments)
+    def __init__(self,
+                 source_lines: list[FLine],
+                 xy_points: list[tuple[float, float]],
+                 segments: list[tuple[int, int] | tuple[int, int, FLine]] | list[LineSegment],
+                 shape: PipeShape=None):
+        Path.__init__(self, source_lines, xy_points, segments)
 
         # set some defaults
         if shape is None:

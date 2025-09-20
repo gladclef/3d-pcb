@@ -4,6 +4,7 @@ import re
 import matplotlib.axis as maxis
 import numpy as np
 
+from FileIO.Line import Line as FLine
 import Geometry.geometry_tools as geo
 from tool.units import *
 
@@ -55,24 +56,25 @@ class Text:
         return ret
 
     @classmethod
-    def from_cad_file(cls, lines: list[str]) -> tuple["Text", list[str]]:
+    def from_cad_file(cls, lines: list[FLine]) -> tuple[list["Text"], list[FLine]]:
         # example text line:
         #     TEXT 0.25 0.107087 0.0393701 180 0 SILKSCREEN_TOP "R1" 0 0 0.0867079 0.0667913
         text_line = None
         for line_idx, line in enumerate(lines):
-            if line.startswith("TEXT"):
+            if line.v.startswith("TEXT"):
                 text_line = line
                 ret_lines = lines[:line_idx] + lines[line_idx+1:]
         if text_line is None:
-            return None, lines
+            return [], lines
         
         # regex explanation:             x offset  y offset   font sz?   rotation   ???        layer     value      ???        ???        text width text height
         text_pattern = re.compile(r"TEXT ([\d\.]+) ([-\d\.]+) ([-\d\.]+) ([-\d\.]+) ([-\d\.]+) ([^ ]+) \"([^\"]+)\" ([-\d\.]+) ([-\d\.]+) ([-\d\.]+) ([-\d\.]+)")
 
         # break out the various parts of the text line
         match = text_pattern.match(text_line)
+        match = text_pattern.match(text_line.v)
         if match is None:
-            raise RuntimeError("Error in Text.from_cad_file(): failed to match text_pattern to line:\n\t" + text_line)
+            raise RuntimeError("Error in Text.from_cad_file(): failed to match text_pattern to line:\n\t" + text_line.v)
         x_offset, y_offset, font_size, rotation, _, layer, value, _, _, width, height = match.groups()
         x_offset_mm = in2mm(float(x_offset))
         y_offset_mm = in2mm(float(y_offset))
@@ -81,7 +83,7 @@ class Text:
         height_mm = in2mm(float(height))
 
         text = Text(value, font_size, x_offset_mm, y_offset_mm, width_mm, height_mm, rotation_rad, layer)
-        return text, ret_lines
+        return [text], ret_lines
 
     def draw(self, ax: maxis.Axis):
         text_loc = self.x_offset, self.y_offset

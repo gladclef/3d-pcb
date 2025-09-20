@@ -7,6 +7,7 @@ import vtk
 
 from Component.Component import Component
 from Component.Shape import Shape
+from FileIO.Line import Line
 from FileIO.CadFileHelper import CadFileHelper
 from Trace.SingleTrace import SingleTrace
 import tool.vtk_tools as vt
@@ -27,19 +28,18 @@ class Board:
 
     @classmethod
     def from_cad_file(cls, gencad_file: str):
-        with open(gencad_file, "r") as fin:
-            lines = fin.readlines()
+        lines = Line.from_file(gencad_file)
 
         shapes_helper = CadFileHelper("$SHAPES", "$ENDSHAPES")
         components_helper = CadFileHelper("$COMPONENTS", "$ENDCOMPONENTS")
 
-        def get_instances(cls: T, lines: list[str]) -> tuple[list[T], list[str]]:
+        def get_instances(cls: T, lines: list[Line]) -> tuple[list[T], list[Line]]:
             ret: list[T] = []
 
-            instance, unmatched_lines = cls.from_cad_file(lines)
-            while instance is not None:
-                ret.append(instance)
-                instance, unmatched_lines = cls.from_cad_file(unmatched_lines)
+            instances, unmatched_lines = cls.from_cad_file(lines)
+            while len(instances) > 0:
+                ret += instances
+                instances, unmatched_lines = cls.from_cad_file(unmatched_lines)
             
             return ret, unmatched_lines
 

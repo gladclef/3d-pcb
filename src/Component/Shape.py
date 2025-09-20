@@ -9,6 +9,7 @@ from Component.Circle import Circle
 from Component.Line import Line
 from Component.Pin import Pin
 from FileIO.CadFileHelper import CadFileHelper
+from FileIO.Line import Line as FLine
 
 class Shape:
     """
@@ -96,24 +97,24 @@ class Shape:
         return ret
 
     @classmethod
-    def from_cad_file(cls, lines: list[str]) -> tuple["Shape", list[str]]:
+    def from_cad_file(cls, lines: list[FLine]) -> tuple[list["Shape"], list[FLine]]:
         """
         Creates a `Shape` instance by parsing lines from a CAD file.
 
         Parameters
         ----------
-        lines : list[str]
+        lines : list[FLine]
             Lines of text representing the shape in a CAD file.
 
         Returns
         -------
-        tuple[Shape, list[str]]
+        tuple[Shape, list[FLine]]
             A tuple containing the created `Shape` and any remaining unprocessed lines.
         """
         helper = CadFileHelper(re.compile(r"SHAPE.*"), re.compile(r"^(\$ENDSHAPES)?$"), ignore_false_endings=True)
         pre_lines, shape_lines, post_lines = helper.get_next_region(lines)
         if len(shape_lines) == 0:
-            return None, lines
+            return [], lines
         
         # debugging
         # print("In Shape.from_cad_file(), shape_lines are:\n\t" + "\t".join(shape_lines))
@@ -121,17 +122,17 @@ class Shape:
         # example "SHAPE" line:
         # SHAPE "Resistor_THT:R_Axial_DIN0309_L9.0mm_D3.2mm_P12.70mm_Horizontal"
         shape_header_line = shape_lines[0]
-        assert shape_header_line.startswith("SHAPE ")
-        full_name = shape_header_line.split('"', 1)[1].rstrip().rstrip('"')
+        assert shape_header_line.v.startswith("SHAPE ")
+        full_name = shape_header_line.v.split('"', 1)[1].rstrip().rstrip('"')
         short_name, type_name = tuple(full_name.split(":", 1))
 
-        def children_from_cad_file(cls, unmatched_lines: list[str]) -> tuple[list, list[str]]:
+        def children_from_cad_file(cls, unmatched_lines: list[FLine]) -> tuple[list, list[FLine]]:
             children = []
 
-            child, unmatched_lines = cls.from_cad_file(unmatched_lines)
-            while child is not None:
-                children.append(child)
-                child, unmatched_lines = cls.from_cad_file(unmatched_lines)
+            childs, unmatched_lines = cls.from_cad_file(unmatched_lines)
+            while len(childs) > 0:
+                children += childs
+                childs, unmatched_lines = cls.from_cad_file(unmatched_lines)
             
             return children, unmatched_lines
         
@@ -143,7 +144,7 @@ class Shape:
 
         parent = None
         shape = cls(parent, short_name, type_name, pins, lines, arcs, circles)
-        return shape, pre_lines + post_lines
+        return [shape], pre_lines + post_lines
 
     def to_vtk(self, polydata: vtk.vtkPolyData) -> vtk.vtkPolyData:
         for pin in self.pins:

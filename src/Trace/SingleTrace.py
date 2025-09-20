@@ -10,6 +10,7 @@ import vtk
 from Component.Component import Component
 from Component.Pin import Pin
 from FileIO.CadFileHelper import CadFileHelper
+from FileIO.Line import Line as FLine
 import Geometry.geometry_tools as geo
 from Geometry.LineSegment import LineSegment
 from Trace.AbstractTrace import AbstractTrace
@@ -30,7 +31,14 @@ class SingleTrace(AbstractTrace):
     using the more general Trace class.
     """
 
-    def __init__(self, xy_points: list[tuple[float, float]], segments: list[tuple[int, int]] | list[LineSegment], shape: PipeShape=None, bend_radius: float=1, allow_overlap=False):
+    def __init__(self,
+                 source_lines: list[FLine],
+                 layer: str,
+                 xy_points: list[tuple[float, float]],
+                 segments: list[tuple[int, int] | tuple[int, int, FLine]] | list[LineSegment],
+                 shape: PipeShape=None,
+                 bend_radius: float=1,
+                 allow_overlap=False):
         """
         Initializes a SingleTrace object.
 
@@ -51,12 +59,17 @@ class SingleTrace(AbstractTrace):
         allow_overlap : bool, optional
             If True, overlapping segments are allowed, by default False.
         """
-        super().__init__(xy_points, segments, shape)
+        linenos = [l.lineno for l in source_lines]
+        print(f"Creating {self.__class__.__name__} instance from lines ({min(linenos)+1}-{max(linenos)+1})")# +
+        #      ":\n\t" + "\n\t".join([l.v.rstrip() for l in source_lines]))
+        super().__init__(source_lines, xy_points, segments, shape)
 
         # set some defaults
         if bend_radius is None:
             bend_radius = g.TRACE_CORNER_RADIUS
 
+        self.layer = layer
+        """ Which layer of the board this trace is on """
         self._xypnt_vtk_verticies: dict[tuple[float, float], VtkPointGroup] = {}
         """ Dictionary from xy point index to vtk points. """
         self.xypnt_trace_corners: dict[tuple[float, float], TraceCorner] = {}

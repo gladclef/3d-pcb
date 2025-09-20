@@ -5,6 +5,7 @@ import matplotlib.axis as maxis
 import matplotlib.pyplot as plt
 import numpy as np
 
+from FileIO.Line import Line as FLine
 from tool.units import *
 import Geometry.geometry_tools as geo
 
@@ -41,18 +42,18 @@ class Circle:
         return ret
 
     @classmethod
-    def from_cad_file(cls, lines: list[str]) -> tuple["Circle", list[str]]:
+    def from_cad_file(cls, lines: list[FLine]) -> tuple[list["Circle"], list[FLine]]:
         """
         Create a Circle instance by parsing lines from a CAD file.
 
         Parameters
         ----------
-        lines : list[str]
+        lines : list[FLine]
             Lines of text representing the Circle in a CAD file.
 
         Returns
         -------
-        tuple[Circle, list[str]]
+        tuple[Circle, list[FLine]]
             A tuple containing the created Circle and any remaining unprocessed lines.
 
         Raises
@@ -65,27 +66,27 @@ class Circle:
 
         circle_line = None
         for line_idx, line in enumerate(lines):
-            if line.startswith("CIRCLE"):
+            if line.v.startswith("CIRCLE"):
                 circle_line = line
                 ret_lines = lines[:line_idx] + lines[line_idx+1:]
                 break
         if circle_line is None:
-            return None, lines
+            return [], lines
 
         # regex explanation:                 center_x   center_y   radius
         circle_pattern = re.compile(r"CIRCLE ([-\d\.]+) ([-\d\.]+) ([-\d\.]+)")
 
         # break out the various parts of the circle
-        match = circle_pattern.match(circle_line)
+        match = circle_pattern.match(circle_line.v)
         if match is None:
-            raise RuntimeError("Error in Circle.from_cad_file(): failed to match circle_pattern to line:\n\t" + circle_line)
+            raise RuntimeError("Error in Circle.from_cad_file(): failed to match circle_pattern to line:\n\t" + circle_line.v)
 
         center_x, center_y, radius = match.groups()
         center_x, center_y = in2mm(float(center_x)), in2mm(float(center_y))
         radius = in2mm(float(radius))
 
         circle = cls((center_x, center_y), radius)
-        return circle, ret_lines
+        return [circle], ret_lines
 
     def draw(self, ax: maxis.Axis):
         ax.add_patch(plt.Circle(self.center_point, self.radius, edgecolor="grey", facecolor="None"))
