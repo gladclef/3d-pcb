@@ -1,4 +1,5 @@
 import copy
+import os
 from typing import TypeVar
 
 import pyvista
@@ -27,7 +28,7 @@ class Board:
         self.components = components
 
     @classmethod
-    def from_cad_file(cls, gencad_file: str):
+    def from_cad_file(cls, gencad_file: str) -> "Board":
         lines = Line.from_file(gencad_file)
 
         shapes_helper = CadFileHelper("$SHAPES", "$ENDSHAPES")
@@ -100,7 +101,8 @@ class Board:
 
         
 if __name__ == "__main__":
-    board = Board.from_cad_file("../test schematics/hello_light/exports/hello_light.cad")
+    dir = "C:/Users/bbean/Documents/3dprints/deej/models/v3/front pcb/deej front"
+    board = Board.from_cad_file(os.path.join(dir, "deej front.cad"))
     board.draw_board()
 
     polydata = vt.new_polydata()
@@ -115,7 +117,7 @@ if __name__ == "__main__":
     test_trace_mesh.plot(show_edges=True, opacity=1, show_vertices=True)
     # pyvista.PolyDataFilters.plot_normals(test_trace_mesh, mag=0.5, flip=False, faces=False, show_edges=True, opacity=0.95, show_verticies=True)
 
-    pyvista.PolyData(traces_pd).save("test_trace_traces.stl")
-    pyvista.PolyData(vias_pd).save("test_trace_vias.stl")
-    pyvista.PolyData(component_pd).save("test_trace_components.stl")
-    test_trace_mesh.save("test_trace.stl")
+    pyvista.PolyData(traces_pd).save(os.path.join("test_trace_traces.stl"))
+    pyvista.PolyData(vias_pd).save(os.path.join("test_trace_vias.stl"))
+    pyvista.PolyData(component_pd).save(os.path.join("test_trace_components.stl"))
+    test_trace_mesh.save(os.path.join("test_trace.stl"))
