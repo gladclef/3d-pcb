@@ -18,7 +18,14 @@ import tool.vtk_tools as vt
 class Pin(DrillHole):
     """Represents a single through hole for a component shape."""
 
-    def __init__(self, parent: "Shape", pad_name: str, x_offset: float, y_offset: float, layer: str, is_pad=False):
+    def __init__(self,
+                 parent: "Shape",
+                 pin_description: str,
+                 pad_name: str,
+                 x_offset: float,
+                 y_offset: float,
+                 layer: str,
+                 is_pad=False):
         """
         Initialize the Pin instance.
 
@@ -26,6 +33,8 @@ class Pin(DrillHole):
         ----------
         parent : Shape
             The shape that contains this pin.
+        pin_description : str
+            A description of this pin. I think this is the name assigned on the component template?
         pad_name : str
             The name of the pad stack for this pin.
         x_offset : float
@@ -42,6 +51,8 @@ class Pin(DrillHole):
 
         self.parent = parent
         """The shape that contains this pin."""
+        self.pin_description = pin_description
+        """A description of this pin. I think this is the name assigned on the component template?"""
         self.pad_name = pad_name
         """The name of the pin."""
         self.layer = layer
@@ -107,8 +118,8 @@ class Pin(DrillHole):
         if pin_line is None:
             return [], lines
         
-        # regex explanation:                   pad num  x offset   y offset   layer   ???        ???
-        pin_pattern = re.compile(r"PIN \"\d+\" (PAD\d+) ([-\d\.]+) ([-\d\.]+) ([^ ]+) ([-\d\.]+) ([-\d\.]+)")
+        # regex explanation:             pin desc   pad num  x offset    y offset    layer   ???        ???
+        pin_pattern = re.compile(r"PIN \"([^\"]+)\" (PAD\d+) ([-\d\.e]+) ([-\d\.e]+) ([^ ]+) ([-\d\.]+) ([-\d\.]+)")
 
         # break out the various parts of the pin line
         # print(pin_line.v.strip())
@@ -116,10 +127,10 @@ class Pin(DrillHole):
         if match is None:
             raise RuntimeError("Error in Pin.from_cad_file(): failed to match pin_pattern to line:\n\t" + pin_line.v)
 
-        pad_name, x_offset, y_offset, layer, _, _ = match.groups()
+        pin_desc, pad_name, x_offset, y_offset, layer, _, _ = match.groups()
         x_offset = in2mm(float(x_offset))
         y_offset = in2mm(float(y_offset))
 
         parent = None
-        pin = cls(parent, pad_name, x_offset, y_offset, layer)
+        pin = cls(parent, pin_desc, pad_name, x_offset, y_offset, layer)
         return [pin], ret_lines

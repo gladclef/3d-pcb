@@ -67,11 +67,11 @@ class Text:
         if text_line is None:
             return [], lines
         
-        # regex explanation:             x offset  y offset   font sz?   rotation   ???        layer     value      ???        ???        text width text height
-        text_pattern = re.compile(r"TEXT ([\d\.]+) ([-\d\.]+) ([-\d\.]+) ([-\d\.]+) ([-\d\.]+) ([^ ]+) \"([^\"]+)\" ([-\d\.]+) ([-\d\.]+) ([-\d\.]+) ([-\d\.]+)")
+        # regex explanation:             x offset    y offset    font sz?   rotation   ???        layer     value      ???        ???        text width text height
+        text_pattern = re.compile(r"TEXT ([-\d\.e]+) ([-\d\.e]+) ([-\d\.]+) ([-\d\.]+) ([-\d\.]+) ([^ ]+) \"([^\"]+)\" ([-\d\.]+) ([-\d\.]+) ([-\d\.]+) ([-\d\.]+)")
 
         # break out the various parts of the text line
-        match = text_pattern.match(text_line)
+        # print(text_line.v.strip())
         match = text_pattern.match(text_line.v)
         if match is None:
             raise RuntimeError("Error in Text.from_cad_file(): failed to match text_pattern to line:\n\t" + text_line.v)

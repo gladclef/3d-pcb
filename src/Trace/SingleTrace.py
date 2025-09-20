@@ -414,7 +414,7 @@ class SingleTrace(AbstractTrace):
 
             x, y = pin.x_offset, pin.y_offset
             y += Pin.through_hole_diameter() / 2 + Pin.via_diameter() / 2
-            adjusted_pin = Pin(None, "", x, y, pin.layer, pin.is_pad)
+            adjusted_pin = Pin(None, "", "", x, y, pin.layer, pin.is_pad)
             ret[end] = adjusted_pin
 
         return ret
