@@ -137,6 +137,8 @@ class CadFileHelper:
                         raise RuntimeError("Error in CadFileHelper.get_next_region(): found end region but we're not in a region!")
                 
         if region_start >= 0:
+            if region_end == -1:
+                region_end = len(lines)-1
             post_lines = [] if region_end == len(lines)-1 else lines[region_end+1:]
             return lines[:region_start], lines[region_start:region_end+1], post_lines
         else:

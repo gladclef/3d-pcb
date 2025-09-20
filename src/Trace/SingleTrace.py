@@ -22,6 +22,9 @@ import tool.vtk_tools as vt
 from tool.units import *
 
 
+ALLOW_MULTIPLE_TRACES_PER_ROUTE = True
+
+
 class SingleTrace(AbstractTrace):
     """
     Represents a singular wire trace on a PCB.
@@ -296,13 +299,61 @@ class SingleTrace(AbstractTrace):
             segment_points.inc_vtk_indicies(start, cnt)
 
     @classmethod
-    def from_cad_file(cls, cad_lines: list[str], shape: PipeShape=None, bend_radius: float=None) -> tuple[Union["SingleTrace",None], list[str]]:
+    def get_lines_for_next_trace(cls, cad_lines: list[FLine]):
+        routes_helper = CadFileHelper("$ROUTES", "$ENDROUTES")
+        route_helper = CadFileHelper(re.compile(r"ROUTE .*"), re.compile(r"(ROUTE.*|\$ENDROUTES)"))
+        layer_helper = CadFileHelper(re.compile(r"LAYER .*"), re.compile(r"(ROUTE.*|\$ENDROUTES|LAYER .*)"))
+
+        # get the lines from the cad file for the next route
+        pre_routes, routes, post_routes = routes_helper.get_next_region(cad_lines)
+        if len(routes) == 0:
+            return cad_lines, [], []
+        if len(routes) == 1:
+            # just the end matcher "$ENDROUTES"
+            assert routes[0].v.strip() == "$ENDROUTES"
+            return pre_routes, [], post_routes
+        assert routes[-1].v.strip() in ["ROUTE", "$ENDROUTES"]
+
+        # break up on route
+        pre_route, route, post_route = route_helper.get_next_region(routes)
+        if len(route) == 0:
+            return cad_lines, [], []
+        if len(route) == 1:
+            # just the end matcher "ROUTE" or "$ENDROUTES"
+            assert route[0].v.strip() in ["ROUTE", "$ENDROUTES"]
+            return pre_routes + pre_route, [], post_route + post_routes
+        assert route[-1].v.strip().startswith("ROUTE") or route[-1].v.strip() == "$ENDROUTES"
+        post_route.insert(0, route.pop())
+
+        # break up on layers
+        pre_layer, layer, post_layer = layer_helper.get_next_region(route[1:])
+        if len(layer) == 0:
+            # just a single unnamed layer for this route
+            route = route[:-1]
+            pre_layer, layer, post_layer = pre_route, route, post_route
+        if len(layer) == 1:
+            # just the end matcher "ROUTE", "LAYER", or "$ENDROUTES"
+            assert layer[0].v.strip() != "LAYER"
+            assert layer[0].v.strip().startswith("ROUTE") or layer[0].v.strip() == "$ENDROUTES"
+            return pre_routes + pre_route + pre_layer, [], post_layer + post_route + post_routes
+        else:
+            # multiple layers for this route
+            assert route[0].v.startswith("ROUTE ")
+            pre_layer.insert(0, route[0])
+            if layer_helper.end_matches(layer[-1]):
+                post_layer.insert(0, layer.pop())
+            assert layer[0].v.startswith("LAYER ")
+
+        return pre_routes + pre_route + pre_layer, layer, post_layer + post_route + post_routes
+
+    @classmethod
+    def from_cad_file(cls, cad_lines: list[FLine], shape: PipeShape=None, bend_radius: float=None) -> tuple[list["SingleTrace"], list[FLine]]:
         """
         Creates a SingleTrace object from CAD file lines.
 
         Parameters
         ----------
-        cad_lines : list[str]
+        cad_lines : list[FLine]
             Lines from the CAD file defining routes.
         shape : PipeShape, optional
             Shape to extrude along the trace's path, or None to use the
@@ -313,31 +364,31 @@ class SingleTrace(AbstractTrace):
 
         Returns
         -------
-        tuple[Union["SingleTrace",None], list[str]]
+        tuple[Union["SingleTrace",None], list[FLine]]
             A tuple containing a SingleTrace instance (if found) and remaining lines from the CAD file.
         """
-        routes_helper = CadFileHelper("$ROUTES", "$ENDROUTES")
-        route_helper = CadFileHelper(re.compile(r"ROUTE.*"), re.compile(r"(ROUTE.*|\$ENDROUTES)"))
+        global ALLOW_MULTIPLE_TRACES_PER_ROUTE
+        
+        # get the lines
+        pre_trace, trace, post_trace = cls.get_lines_for_next_trace(cad_lines)
+        if len(trace) == 0:
+            return [], pre_trace + post_trace
+        
+        # get the layer name
+        name_lines = list(filter(lambda l: l.v.strip().startswith("LAYER "), trace))
+        assert len(name_lines) <= 1
+        if len(name_lines) == 0:
+            layer_name = "TOP"
+        else:
+            layer_name = name_lines[0].v.split("LAYER ")[1].strip()
 
-        # get the lines from the cad file for the next route
-        pre_routes, routes, post_routes = routes_helper.get_next_region(cad_lines)
-        if len(routes) == 0:
-            return None, cad_lines
-
-        pre_route, route, post_route = route_helper.get_next_region(routes)
-        if len(route) == 0:
-            return None, cad_lines
-        if not route[-1].startswith("$ENDROUTES"):
-            post_route.insert(0, route[-1])
-        route = route[:-1]
-
-        # parse the lines for this route
-        segment_lines = list(filter(lambda l: l.startswith("LINE "), route))
+        # parse the lines for this route+layer
+        segment_lines = list(filter(lambda l: l.v.startswith("LINE "), trace))
         xy_points_orig: list[tuple[float, float]] = []
-        edges: list[tuple[int, int]] = []
+        edges: list[tuple[int, int, FLine]] = []
         for segment_line in segment_lines:
 
-            x1, y1, x2, y2 = tuple(map(float, segment_line.strip()[5:].split(" ")))
+            x1, y1, x2, y2 = tuple(map(float, segment_line.v.strip()[5:].split(" ")))
             xy1, xy2 = (x1, y1), (x2, y2)
             if xy1 not in xy_points_orig:
                 xy_points_orig.append(xy1)
@@ -345,28 +396,127 @@ class SingleTrace(AbstractTrace):
                 xy_points_orig.append(xy2)
 
             xy1_idx, xy2_idx = xy_points_orig.index(xy1), xy_points_orig.index(xy2)
-            edges.append((xy1_idx, xy2_idx))
+            edges.append((xy1_idx, xy2_idx, segment_line))
         xy_points: list[tuple[float, float]] = [(in2mm(x), in2mm(y)) for x, y in xy_points_orig]
 
-        if len(edges) > 1:
-            # orient adjacent edges
-            for edge_idx, (xy1_idx, xy2_idx) in enumerate(edges[:-1]):
-                next_edge = edges[edge_idx]
-                if xy1_idx in next_edge:
-                    edges[edge_idx] = (xy2_idx, xy1_idx)
+        if len(edges) == 1:
+            edge_groups = [edges]
+        else:
+            # Group edges that constitute a single trace (there can be
+            # multiple traces per route+layer). To do this we look for all
+            # edges that join to each other.
+            edge_groups: list[list[tuple[int, int, FLine]]] = []
+            if ALLOW_MULTIPLE_TRACES_PER_ROUTE:
+                # find all end edges
+                solo_edges: list[tuple[int, int, FLine]] = []
+                end_edges: list[tuple[int, int, FLine]] = []
+                inner_edges: list[tuple[int, int, FLine]] = []
+                for edge_idx, edge in enumerate(edges):
+                    n_matches = 0
+                    matching_edges = ""
+                    for other_edge in filter(lambda e: e != edge, edges):
+                        if edge[0] in other_edge[:2] or edge[1] in other_edge[:2]:
+                            n_matches += 1
+                            matching_edges += str(other_edge) + "\n\t\t"
+                    assert n_matches <= 2, f"Found more than 2 matching edges!\n\tSource edge: {edge}\n\tMatching edges: {matching_edges}"
+                    if n_matches == 0:
+                        solo_edges.append(edge)
+                    elif n_matches == 1:
+                        end_edges.append(edge)
+                    elif n_matches == 2:
+                        inner_edges.append(edge)
+                assert len(end_edges) >= 2
+                assert len(end_edges) % 2 == 0
 
-            # orient the last edge
-            xy1_idx, xy2_idx = edges[-1]
-            prev_edge = edges[-2]
-            if xy2_idx in prev_edge:
-                edges[-1] = (xy2_idx, xy1_idx)
+                # all solo edges are, by definition, an edge group
+                for edge in solo_edges:
+                    edge_groups.append([edge])
+                solo_edges.clear()
+                
+                # get the edges for each group
+                while True:
+                    end_a = end_edges.pop()
+                    edge_group = [end_a]
+                    end_b: tuple[int, int, FLine] = None
+
+                    # find the group inner edges
+                    group_xy_points = [end_a[0], end_a[1]]
+                    found_inner_edge = True
+                    while found_inner_edge:
+                        found_inner_edge = False
+                        for edge in copy.copy(inner_edges):
+                            if edge[0] in group_xy_points or edge[1] in group_xy_points:
+                                edge_group.append(edge)
+                                group_xy_points.append(edge[0])
+                                group_xy_points.append(edge[1])
+                                inner_edges.remove(edge)
+                                found_inner_edge = True
+                                break
+
+                    # find the other end
+                    for edge in end_edges:
+                        if edge[0] in group_xy_points or edge[1] in group_xy_points:
+                            assert end_b is None
+                            end_b = edge
+                            group_xy_points.append(edge[0])
+                            group_xy_points.append(edge[1])
+                    end_edges.remove(end_b)
+                    edge_group.append(end_b)
+
+                    # add the group
+                    assert len(set(group_xy_points)) == len(edge_group)+1
+                    edge_groups.append(edge_group)
+
+                    # check if we've found all the edge groups
+                    if len(sum(edge_groups, start=[])) >= len(edges):
+                        break
+                
+                # sanity check
+                assert len(sum(edge_groups, start=[])) == len(edges)
+                assert len(solo_edges) == 0
+                assert len(end_edges) == 0
+                assert len(inner_edges) == 0
+            else:
+                edge_groups.append(edges)
+
+            # order the edges in the edge groups
+            for edge_group_idx, edge_group in enumerate(copy.copy(edge_groups)):
+                end_a, end_b = edge_group[0], edge_group[-1]
+                group_inner_edges = edge_group[1:-1]
+                new_edge_group = [end_a]
+                while len(group_inner_edges) > 0:
+                    for edge in copy.copy(group_inner_edges):
+                        if edge[0] in new_edge_group[-1][:2] or edge[1] in new_edge_group[-1][:2]:
+                            new_edge_group.append(edge)
+                            group_inner_edges.remove(edge)
+                            break
+                new_edge_group.append(end_b)
+                edge_groups[edge_group_idx] = new_edge_group
+            
+            # orient adjacent edges
+            for edge_group in edge_groups:
+                for edge_idx, edge in enumerate(edge_group[:-1]):
+                    next_edge = edge_group[edge_idx]
+                    if edge[0] in next_edge[:2]:
+                        edge_group[edge_idx] = (edge[1], edge[0], *edge[2:])
+
+                # orient the last edge
+                end_b = edge_group[-1]
+                prev_edge = edge_group[-2]
+                if end_b[1] in prev_edge[:2]:
+                    edge_group[-1] = (end_b[1], end_b[0], *end_b[2:])
 
         # # debugging
         # for edge in edges:
         #     print(f"LINE   {xy_points_orig[edge[0]]}   {xy_points_orig[edge[1]]}")
 
-        ret = cls(xy_points, edges, shape, bend_radius)
-        return ret, pre_routes + pre_route + post_route + post_routes
+        ret = []
+        for edge_group in edge_groups:
+            source_lines = [e[2] for e in edge_group]
+            instance = cls(source_lines, layer_name, xy_points, edge_group, shape, bend_radius)
+            ret.append( instance )
+
+        return ret, pre_trace + post_trace
 
     def _get_segments_with_through_holes(self) -> list[LineSegment]:
         """
