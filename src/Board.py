@@ -12,6 +12,7 @@ from FileIO.Line import Line
 from FileIO.CadFileHelper import CadFileHelper
 from Trace.SingleTrace import SingleTrace
 import tool.vtk_tools as vt
+from tool.globals import board_parameters as g
 
 T = TypeVar('T')
 
@@ -103,24 +104,26 @@ class Board:
 
         
 if __name__ == "__main__":
-    dir = "C:/Users/bbean/Documents/3dprints/deej/models/v3/front pcb/deej front"
-    board = Board.from_cad_file(os.path.join(dir, "deej front.cad"))
-    board = Board.from_cad_file(os.path.join(dir, "deej front.cad"), limit_layers=["BOTTOM"])
+    g.TRACE_CORNER_RADIUS = 0.6
+
+    example_name = "hello_light"
+    example_dir = os.path.join(os.path.dirname(__file__), "..", "examples", example_name)
+    board = Board.from_cad_file(os.path.join(example_dir, "exports", f"{example_name}.cad"))
     board.draw_board()
 
-    polydata = vt.new_polydata()
     traces_pd, vias_pd, component_pd = board.to_vtk()
+    pyvista.PolyData(traces_pd).save(os.path.join(example_dir, "stls", f"{example_name}_traces.stl"))
+    pyvista.PolyData(vias_pd).save(os.path.join(example_dir, "stls", f"{example_name}_vias.stl"))
+    pyvista.PolyData(component_pd).save(os.path.join(example_dir, "stls", f"{example_name}_components.stl"))
+
+    polydata = vt.new_polydata()
     vt.join(polydata, traces_pd)
     vt.join(polydata, vias_pd)
     vt.join(polydata, component_pd)
 
     print(f"{polydata.GetNumberOfPoints()=}")
-    test_trace_mesh = pyvista.PolyData(polydata)
+    mesh = pyvista.PolyData(polydata)
     pyvista.global_theme.allow_empty_mesh = True
-    test_trace_mesh.plot(show_edges=True, opacity=1, show_vertices=True)
-    # pyvista.PolyDataFilters.plot_normals(test_trace_mesh, mag=0.5, flip=False, faces=False, show_edges=True, opacity=0.95, show_verticies=True)
-
-    pyvista.PolyData(traces_pd).save(os.path.join("test_trace_traces.stl"))
-    pyvista.PolyData(vias_pd).save(os.path.join("test_trace_vias.stl"))
-    pyvista.PolyData(component_pd).save(os.path.join("test_trace_components.stl"))
-    test_trace_mesh.save(os.path.join("test_trace.stl"))
+    mesh.plot(show_edges=True, opacity=1, show_vertices=True)
+    # pyvista.PolyDataFilters.plot_normals(mesh, mag=0.5, flip=False, faces=False, show_edges=True, opacity=0.95, show_verticies=True)
+    mesh.save(os.path.join(example_dir, "stls", f"{example_name}_full.stl"))

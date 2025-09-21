@@ -335,7 +335,10 @@ class SingleTrace(AbstractTrace):
 
         # break up on layers
         pre_layer, layer, post_layer = layer_helper.get_next_region(route[1:])
-        if len(layer) <= 1:
+        if len(layer) == 1 and layer[0].v.strip().startswith("LINE "):
+            # single-value layer
+            pass
+        elif len(layer) <= 1:
             if len(layer) == 1:
                 # just the end matcher "ROUTE", "LAYER", or "$ENDROUTES"
                 assert layer[0].v.strip() != "LAYER"
@@ -350,7 +353,7 @@ class SingleTrace(AbstractTrace):
             else:
                 return pre_routes + pre_route + pre_layer, [], post_layer + post_route + post_routes
         else:
-            # multiple layers for this route
+            # multiple FLines matching this layer for this route
             assert route[0].v.startswith("ROUTE ")
             pre_layer.insert(0, route[0])
             if layer_helper.end_matches(layer[-1]):
