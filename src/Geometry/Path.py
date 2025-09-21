@@ -89,6 +89,12 @@ class Path:
         matching_segments = filter(lambda s: pnt_idx in s[0], self._xypntindicies_2_segments)
         return [s[1] for s in matching_segments]
     
+    def segment_xypnts_indicies(self, segment: LineSegment) -> tuple[int, int]:
+        for s in self._xypntindicies_2_segments:
+            if s[1] == segment:
+                return s[0]
+        assert False, f"Failed to locate segment {segment} in this path!"
+
     def segment_xypnts(self, segment: LineSegment) -> tuple[tuple[float, float], tuple[float, float]]:
         """
         Returns the XY points of a given LineSegment.
@@ -99,9 +105,11 @@ class Path:
         Returns:
             tuple[tuple[float, float], tuple[float, float]]: The two XY coordinates that make up the segment.
         """
-        for s in self._xypntindicies_2_segments:
-            if s[1] == segment:
-                return s[0]
+        xy1_idx, xy2_idx = self.segment_xypnts_indicies(segment)
+        xy1, xy2 = self.xy_points[xy1_idx], self.xy_points[xy2_idx]
+        assert xy1 == segment.xy1
+        assert xy2 == segment.xy2
+        return xy1, xy2
     
     @staticmethod
     def _build_segment(xy_points: list[tuple[float, float]], segment: "_TraceLine") -> LineSegment:
@@ -129,7 +137,7 @@ class Path:
     def _build_segments(cls,
                         xy_points: list[tuple[float, float]], 
                         segments: list[tuple[int, int] | tuple[int, int, FLine]] | list[LineSegment]
-    ) -> list[tuple[tuple[tuple, tuple], LineSegment]]:
+    ) -> list[tuple[tuple[int, int], LineSegment]]:
         """
         Builds the internal representation of this Path from a list of segments.
 
@@ -145,13 +153,13 @@ class Path:
         xypntindicies_2_segments: list[tuple[tuple[tuple, tuple], LineSegment]]
             A list of [xy_point, segment] pairs, one for each point in the given segments.
         """
-        xypntindicies_2_segments: list[tuple[tuple[tuple, tuple], LineSegment]] = []
+        xypntindicies_2_segments: list[tuple[tuple[int, int], LineSegment]] = []
 
         # Insert new segments and register their existence.
         for s in segments:
             if not isinstance(s, LineSegment):
                 s = cls._build_segment(xy_points, s)
-            k = (s.xy1, s.xy2)
+            k = (xy_points.index(s.xy1), xy_points.index(s.xy2))
             xypntindicies_2_segments.append((k, s))
         
         return xypntindicies_2_segments
