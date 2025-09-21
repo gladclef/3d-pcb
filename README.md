@@ -40,5 +40,5 @@ Below is a list of known limitations to layouts based on th current state of the
 - No forking traces (traces must go from one through-hole to another, not from a trace to a through-hole)
 - No sharp bends (90 degree bends are OK)
 - Trace connections to through-holes should provide ~0.5mm of space North of the trace.
-- Vias aren't currently supported
+- Vias [aren't currently supported](https://github.com/gladclef/3d-pcb/issues/1)
 - Through-hole components only
