@@ -312,6 +312,9 @@ class SingleTrace(AbstractTrace):
             # just the end matcher "$ENDROUTES"
             assert routes[0].v.strip() == "$ENDROUTES"
             return pre_routes, [], post_routes
+        if len(routes) == 2:
+            if routes[0].v.strip() == "$ROUTES" and routes[1].v.strip() == "$ENDROUTES":
+                return pre_routes, [], post_routes
         assert routes[-1].v.strip() in ["ROUTE", "$ENDROUTES"]
 
         # break up on route
@@ -321,21 +324,31 @@ class SingleTrace(AbstractTrace):
         if len(route) == 1:
             # just the end matcher "ROUTE" or "$ENDROUTES"
             assert route[0].v.strip() in ["ROUTE", "$ENDROUTES"]
-            return pre_routes + pre_route, [], post_route + post_routes
+            # check if there are any more routes
+            pre_trace, trace, post_trace = cls.get_lines_for_next_trace(pre_routes + pre_route + post_route + post_routes)
+            if len(trace) != 0:
+                return pre_trace, trace, post_trace
+            else:
+                return pre_routes + pre_route, [], post_route + post_routes
         assert route[-1].v.strip().startswith("ROUTE") or route[-1].v.strip() == "$ENDROUTES"
         post_route.insert(0, route.pop())
 
         # break up on layers
         pre_layer, layer, post_layer = layer_helper.get_next_region(route[1:])
-        if len(layer) == 0:
-            # just a single unnamed layer for this route
-            route = route[:-1]
-            pre_layer, layer, post_layer = pre_route, route, post_route
-        if len(layer) == 1:
-            # just the end matcher "ROUTE", "LAYER", or "$ENDROUTES"
-            assert layer[0].v.strip() != "LAYER"
-            assert layer[0].v.strip().startswith("ROUTE") or layer[0].v.strip() == "$ENDROUTES"
-            return pre_routes + pre_route + pre_layer, [], post_layer + post_route + post_routes
+        if len(layer) <= 1:
+            if len(layer) == 1:
+                # just the end matcher "ROUTE", "LAYER", or "$ENDROUTES"
+                assert layer[0].v.strip() != "LAYER"
+                assert layer[0].v.strip().startswith("ROUTE") or layer[0].v.strip() == "$ENDROUTES"
+            # check if there are any more routes
+            assert all([l.v.strip().startswith("TRACK") for l in pre_layer])
+            assert all([l.v.strip().startswith("TRACK") for l in post_layer])
+            # pre_trace, trace, post_trace = cls.get_lines_for_next_trace(pre_routes + pre_route + pre_layer + post_layer + post_route + post_routes)
+            pre_trace, trace, post_trace = cls.get_lines_for_next_trace(pre_routes + pre_route + post_route + post_routes)
+            if len(trace) != 0:
+                return pre_trace, trace, post_trace
+            else:
+                return pre_routes + pre_route + pre_layer, [], post_layer + post_route + post_routes
         else:
             # multiple layers for this route
             assert route[0].v.startswith("ROUTE ")
@@ -418,7 +431,7 @@ class SingleTrace(AbstractTrace):
                         if edge[0] in other_edge[:2] or edge[1] in other_edge[:2]:
                             n_matches += 1
                             matching_edges += str(other_edge) + "\n\t\t"
-                    assert n_matches <= 2, f"Found more than 2 matching edges!\n\tSource edge: {edge}\n\tMatching edges: {matching_edges}"
+                    assert n_matches <= 2, f"Found more than 2 matching edges for !\n\tSource edge:\n\t\t{edge}\n\tMatching edges:\n\t\t{matching_edges}\nIs it possible that you have traces that fork?"
                     if n_matches == 0:
                         solo_edges.append(edge)
                     elif n_matches == 1:
@@ -435,37 +448,37 @@ class SingleTrace(AbstractTrace):
                 # get the edges for each group
                 if len(end_edges) > 0:
                     while True:
-                    end_a = end_edges.pop()
-                    edge_group = [end_a]
-                    end_b: tuple[int, int, FLine] = None
+                        end_a = end_edges.pop()
+                        edge_group = [end_a]
+                        end_b: tuple[int, int, FLine] = None
 
-                    # find the group inner edges
-                    group_xy_points = [end_a[0], end_a[1]]
-                    found_inner_edge = True
-                    while found_inner_edge:
-                        found_inner_edge = False
-                        for edge in copy.copy(inner_edges):
+                        # find the group inner edges
+                        group_xy_points = [end_a[0], end_a[1]]
+                        found_inner_edge = True
+                        while found_inner_edge:
+                            found_inner_edge = False
+                            for edge in copy.copy(inner_edges):
+                                if edge[0] in group_xy_points or edge[1] in group_xy_points:
+                                    edge_group.append(edge)
+                                    group_xy_points.append(edge[0])
+                                    group_xy_points.append(edge[1])
+                                    inner_edges.remove(edge)
+                                    found_inner_edge = True
+                                    break
+
+                        # find the other end
+                        for edge in end_edges:
                             if edge[0] in group_xy_points or edge[1] in group_xy_points:
-                                edge_group.append(edge)
+                                assert end_b is None
+                                end_b = edge
                                 group_xy_points.append(edge[0])
                                 group_xy_points.append(edge[1])
-                                inner_edges.remove(edge)
-                                found_inner_edge = True
-                                break
+                        end_edges.remove(end_b)
+                        edge_group.append(end_b)
 
-                    # find the other end
-                    for edge in end_edges:
-                        if edge[0] in group_xy_points or edge[1] in group_xy_points:
-                            assert end_b is None
-                            end_b = edge
-                            group_xy_points.append(edge[0])
-                            group_xy_points.append(edge[1])
-                    end_edges.remove(end_b)
-                    edge_group.append(end_b)
-
-                    # add the group
-                    assert len(set(group_xy_points)) == len(edge_group)+1
-                    edge_groups.append(edge_group)
+                        # add the group
+                        assert len(set(group_xy_points)) == len(edge_group)+1
+                        edge_groups.append(edge_group)
 
                         # check if we've found all the edge groups
                         if len(sum(edge_groups+solo_edge_groups, start=[])) >= len(edges):
