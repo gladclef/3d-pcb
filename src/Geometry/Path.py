@@ -4,6 +4,9 @@ from typing import TYPE_CHECKING
 from FileIO.Line import Line as FLine
 from Geometry.LineSegment import LineSegment
 
+if TYPE_CHECKING:
+    from Trace.SingleTrace import _TraceLine
+
 
 class Path:
     """
@@ -17,6 +20,9 @@ class Path:
                  xy_points: list[tuple[float, float]],
                  segments: list[tuple[int, int] | tuple[int, int, FLine]] | list[LineSegment]
     ):
+        # import here to avoid an import cycle
+        from Trace.SingleTrace import _TraceLine
+
         # sanity check/normalize input
         assert isinstance(source_lines, list) and isinstance(source_lines[0], FLine)
         new_xy_points = []
@@ -40,7 +46,8 @@ class Path:
         for s in new_segments:
             idx1 = ordered_xy_points.index(s.xy1)
             idx2 = ordered_xy_points.index(s.xy2)
-            new_segments_idxs.append(tuple(sorted([idx1, idx2])))
+            idx1, idx2 = tuple(sorted([idx1, idx2]))
+            new_segments_idxs.append(_TraceLine(s.source_line, idx1, idx2))
         self._xy_points = ordered_xy_points
         self._xypntindicies_2_segments = self._build_segments(ordered_xy_points, new_segments_idxs)
     
@@ -97,7 +104,7 @@ class Path:
                 return s[0]
     
     @staticmethod
-    def _build_segment(xy_points: list[tuple[float, float]], segment: tuple[int, int] | tuple[int, int, FLine], source_line: FLine = None) -> LineSegment:
+    def _build_segment(xy_points: list[tuple[float, float]], segment: "_TraceLine") -> LineSegment:
         """
         Builds a LineSegment from two XY points.
 
@@ -113,9 +120,9 @@ class Path:
         segment: LineSegment
             A new LineSegment object.
         """
-        x1, y1 = xy_points[segment[0]]
-        x2, y2 = xy_points[segment[1]]
-        source_line = None if len(segment) < 3 else segment[2]
+        x1, y1 = xy_points[segment.xy1_idx]
+        x2, y2 = xy_points[segment.xy2_idx]
+        source_line = segment.fline
         return LineSegment((x1, y1), (x2, y2), source_line=source_line)
 
     @classmethod

@@ -1,4 +1,5 @@
 import copy
+import dataclasses
 import re
 from typing import Union
 
@@ -23,6 +24,43 @@ from tool.units import *
 
 
 ALLOW_MULTIPLE_TRACES_PER_ROUTE = True
+
+
+@dataclasses.dataclass
+class _TraceLine:
+    fline: FLine
+    xy1_idx: int
+    xy2_idx: int
+    is_end: bool = False
+    is_solo: bool = False
+    is_inner_edge: bool = False
+
+    @property
+    def xy_idxs(self) -> tuple[int, int]:
+        return (self.xy1_idx, self.xy2_idx)
+
+    @classmethod
+    def uncategorized(cls, trace_lines: list["_TraceLine"]) -> list["_TraceLine"]:
+        return list(filter(lambda tl: not tl.is_end and not tl.is_solo and not tl.is_inner_edge, trace_lines))
+    
+    @classmethod
+    def only_ends(cls, trace_lines: list["_TraceLine"]) -> list["_TraceLine"]:
+        return list(filter(lambda tl: tl.is_end, trace_lines))
+    
+    @classmethod
+    def only_solos(cls, trace_lines: list["_TraceLine"]) -> list["_TraceLine"]:
+        return list(filter(lambda tl: tl.is_solo, trace_lines))
+    
+    @classmethod
+    def only_inners(cls, trace_lines: list["_TraceLine"]) -> list["_TraceLine"]:
+        return list(filter(lambda tl: tl.is_inner_edge, trace_lines))
+
+    @classmethod
+    def not_solo(cls, trace_lines: list["_TraceLine"]) -> list["_TraceLine"]:
+        return list(filter(lambda tl: not tl.is_solo, trace_lines))
+    
+    def __repr__(self):
+        return f"<{self.xy1_idx}, {self.xy2_idx}, {self.fline}>"
 
 
 class SingleTrace(AbstractTrace):
@@ -101,7 +139,9 @@ class SingleTrace(AbstractTrace):
         segment_tuples = [(s.xy1, s.xy2) for s in segments]
         segments_set = set(segment_tuples)
         if len(segment_tuples) != len(segments_set):
-            raise ValueError(f"Error in SingleTrace.check_segment_duplicates(): there are {len(segments_set)} non-duplicate segments out of {len(segments)} total segments.")
+            linenos = [l.lineno for l in self.source_lines]
+            min_lineno, max_lineno = min(linenos), max(linenos)
+            raise ValueError(f"Error in SingleTrace.check_segment_duplicates(): there are {len(segments_set)} non-duplicate segments out of {len(segments)} total segments for lines {min_lineno}-{max_lineno}.")
 
     def check_segments_overlap(self):
         """
@@ -400,7 +440,7 @@ class SingleTrace(AbstractTrace):
         # parse the lines for this route+layer
         segment_lines = list(filter(lambda l: l.v.startswith("LINE "), trace))
         xy_points_orig: list[tuple[float, float]] = []
-        edges: list[tuple[int, int, FLine]] = []
+        edges: list[_TraceLine] = []
         for segment_line in segment_lines:
 
             x1, y1, x2, y2 = tuple(map(float, segment_line.v.strip()[5:].split(" ")))
@@ -411,7 +451,7 @@ class SingleTrace(AbstractTrace):
                 xy_points_orig.append(xy2)
 
             xy1_idx, xy2_idx = xy_points_orig.index(xy1), xy_points_orig.index(xy2)
-            edges.append((xy1_idx, xy2_idx, segment_line))
+            edges.append(_TraceLine(segment_line, xy1_idx, xy2_idx))
         xy_points: list[tuple[float, float]] = [(in2mm(x), in2mm(y)) for x, y in xy_points_orig]
 
         if len(edges) == 1:
@@ -420,62 +460,61 @@ class SingleTrace(AbstractTrace):
             # Group edges that constitute a single trace (there can be
             # multiple traces per route+layer). To do this we look for all
             # edges that join to each other.
-            edge_groups: list[list[tuple[int, int, FLine]]] = []
-            solo_edge_groups: list[list[tuple[int, int, FLine]]] = []
+            edge_groups: list[list[_TraceLine]] = []
             if ALLOW_MULTIPLE_TRACES_PER_ROUTE:
                 # find all end edges
-                solo_edges: list[tuple[int, int, FLine]] = []
-                end_edges: list[tuple[int, int, FLine]] = []
-                inner_edges: list[tuple[int, int, FLine]] = []
                 for edge_idx, edge in enumerate(edges):
                     n_matches = 0
                     matching_edges = ""
                     for other_edge in filter(lambda e: e != edge, edges):
-                        if edge[0] in other_edge[:2] or edge[1] in other_edge[:2]:
+                        if (edge.xy1_idx in other_edge.xy_idxs) or (edge.xy2_idx in other_edge.xy_idxs):
                             n_matches += 1
                             matching_edges += str(other_edge) + "\n\t\t"
                     assert n_matches <= 2, f"Found more than 2 matching edges for !\n\tSource edge:\n\t\t{edge}\n\tMatching edges:\n\t\t{matching_edges}\nIs it possible that you have traces that fork?"
                     if n_matches == 0:
-                        solo_edges.append(edge)
+                        edge.is_solo = True
                     elif n_matches == 1:
-                        end_edges.append(edge)
+                        edge.is_end = True
                     elif n_matches == 2:
-                        inner_edges.append(edge)
-                assert len(end_edges) % 2 == 0
+                        edge.is_inner_edge = True
+                assert len(_TraceLine.uncategorized(edges)) == 0
+                assert len(_TraceLine.only_ends(edges)) % 2 == 0
+                assert len(_TraceLine.only_ends(edges) + _TraceLine.only_solos(edges) + _TraceLine.only_inners(edges)) == len(edges)
 
                 # all solo edges are, by definition, an edge group
-                for edge in solo_edges:
-                    solo_edge_groups.append([edge])
-                solo_edges.clear()
+                for edge in _TraceLine.only_solos(edges):
+                    edge_groups.append([edge])
                 
                 # get the edges for each group
+                end_edges = _TraceLine.only_ends(edges)
+                inner_edges = _TraceLine.only_inners(edges)
                 if len(end_edges) > 0:
                     while True:
                         end_a = end_edges.pop()
                         edge_group = [end_a]
-                        end_b: tuple[int, int, FLine] = None
+                        end_b: _TraceLine = None
 
                         # find the group inner edges
-                        group_xy_points = [end_a[0], end_a[1]]
+                        group_xy_points = [end_a.xy1_idx, end_a.xy2_idx]
                         found_inner_edge = True
                         while found_inner_edge:
                             found_inner_edge = False
                             for edge in copy.copy(inner_edges):
-                                if edge[0] in group_xy_points or edge[1] in group_xy_points:
+                                if (edge.xy1_idx in group_xy_points) or (edge.xy2_idx in group_xy_points):
                                     edge_group.append(edge)
-                                    group_xy_points.append(edge[0])
-                                    group_xy_points.append(edge[1])
+                                    group_xy_points.append(edge.xy1_idx)
+                                    group_xy_points.append(edge.xy2_idx)
                                     inner_edges.remove(edge)
                                     found_inner_edge = True
                                     break
 
                         # find the other end
                         for edge in end_edges:
-                            if edge[0] in group_xy_points or edge[1] in group_xy_points:
+                            if (edge.xy1_idx in group_xy_points) or (edge.xy2_idx in group_xy_points):
                                 assert end_b is None
                                 end_b = edge
-                                group_xy_points.append(edge[0])
-                                group_xy_points.append(edge[1])
+                                group_xy_points.append(edge.xy1_idx)
+                                group_xy_points.append(edge.xy2_idx)
                         end_edges.remove(end_b)
                         edge_group.append(end_b)
 
@@ -484,12 +523,11 @@ class SingleTrace(AbstractTrace):
                         edge_groups.append(edge_group)
 
                         # check if we've found all the edge groups
-                        if len(sum(edge_groups+solo_edge_groups, start=[])) >= len(edges):
+                        if len(sum(edge_groups, start=[])) >= len(edges):
                             break
                 
                 # sanity check
-                assert len(sum(edge_groups+solo_edge_groups, start=[])) == len(edges)
-                assert len(solo_edges) == 0
+                assert len(sum(edge_groups, start=[])) == len(edges)
                 assert len(end_edges) == 0
                 assert len(inner_edges) == 0
             else:
@@ -497,12 +535,17 @@ class SingleTrace(AbstractTrace):
 
             # order the edges in the edge groups
             for edge_group_idx, edge_group in enumerate(copy.copy(edge_groups)):
+                if len(edge_group) == 1:
+                    assert edge_group[0].is_solo
+                    continue
+                assert len(_TraceLine.only_solos(edge_group)) == 0
+
                 end_a, end_b = edge_group[0], edge_group[-1]
                 group_inner_edges = edge_group[1:-1]
                 new_edge_group = [end_a]
                 while len(group_inner_edges) > 0:
                     for edge in copy.copy(group_inner_edges):
-                        if edge[0] in new_edge_group[-1][:2] or edge[1] in new_edge_group[-1][:2]:
+                        if (edge.xy1_idx in new_edge_group[-1].xy_idxs) or (edge.xy2_idx in new_edge_group[-1].xy_idxs):
                             new_edge_group.append(edge)
                             group_inner_edges.remove(edge)
                             break
@@ -511,19 +554,19 @@ class SingleTrace(AbstractTrace):
             
             # orient adjacent edges
             for edge_group in edge_groups:
+                if len(edge_group) == 1:
+                    continue
+
                 for edge_idx, edge in enumerate(edge_group[:-1]):
                     next_edge = edge_group[edge_idx]
-                    if edge[0] in next_edge[:2]:
-                        edge_group[edge_idx] = (edge[1], edge[0], *edge[2:])
+                    if edge.xy1_idx in next_edge.xy_idxs:
+                        edge.xy1_idx, edge.xy2_idx = edge.xy2_idx, edge.xy1_idx
 
                 # orient the last edge
                 end_b = edge_group[-1]
                 prev_edge = edge_group[-2]
-                if end_b[1] in prev_edge[:2]:
-                    edge_group[-1] = (end_b[1], end_b[0], *end_b[2:])
-            
-            # include the solo edges
-            edge_groups += solo_edge_groups
+                if end_b.xy2_idx in prev_edge.xy_idxs:
+                    end_b.xy1_idx, end_b.xy2_idx = end_b.xy2_idx, end_b.xy1_idx
 
         # # debugging
         # for edge in edges:
@@ -531,7 +574,7 @@ class SingleTrace(AbstractTrace):
 
         ret = []
         for edge_group in edge_groups:
-            source_lines = [e[2] for e in edge_group]
+            source_lines = [e.fline for e in edge_group]
             instance = cls(source_lines, layer_name, xy_points, edge_group, shape, bend_radius)
             ret.append( instance )
 
