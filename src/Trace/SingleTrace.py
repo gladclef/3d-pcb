@@ -302,7 +302,7 @@ class SingleTrace(AbstractTrace):
     def get_lines_for_next_trace(cls, cad_lines: list[FLine]):
         routes_helper = CadFileHelper("$ROUTES", "$ENDROUTES")
         route_helper = CadFileHelper(re.compile(r"ROUTE .*"), re.compile(r"(ROUTE.*|\$ENDROUTES)"))
-        layer_helper = CadFileHelper(re.compile(r"LAYER .*"), re.compile(r"(ROUTE.*|\$ENDROUTES|LAYER .*)"))
+        layer_helper = CadFileHelper(re.compile(r"(LAYER|LINE) .*"), re.compile(r"(ROUTE.*|\$ENDROUTES|LAYER .*)"), allow_multiple_starts=True)
 
         # get the lines from the cad file for the next route
         pre_routes, routes, post_routes = routes_helper.get_next_region(cad_lines)
@@ -342,7 +342,6 @@ class SingleTrace(AbstractTrace):
             pre_layer.insert(0, route[0])
             if layer_helper.end_matches(layer[-1]):
                 post_layer.insert(0, layer.pop())
-            assert layer[0].v.startswith("LAYER ")
 
         return pre_routes + pre_route + pre_layer, layer, post_layer + post_route + post_routes
 

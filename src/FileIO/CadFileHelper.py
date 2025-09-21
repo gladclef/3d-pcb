@@ -7,7 +7,7 @@ class CadFileHelper:
     Assistant class to help parse gencad files, such as those exported by KiCad.
     """
 
-    def __init__(self, start_tag: str | re.Pattern, end_tag: str | re.Pattern, ignore_false_endings=False):
+    def __init__(self, start_tag: str | re.Pattern, end_tag: str | re.Pattern, allow_multiple_starts=False, ignore_false_endings=False):
         """
         Initialize the `CadFileHelper` instance.
 
@@ -17,6 +17,8 @@ class CadFileHelper:
             The starting tag or pattern to identify the beginning of a region.
         end_tag : str or re.Pattern
             The ending tag or pattern to identify the end of a region.
+        allow_multiple_starts : bool, optional
+            True to ignore multiple starting match lines without an ending match line. Default is False.
         ignore_false_endings : bool, optional
             Whether to ignore lines matching `end_tag` when not in a region. Default is False.
         """
@@ -24,6 +26,8 @@ class CadFileHelper:
         """ The starting tag or pattern for identifying regions. """
         self.end_tag = end_tag
         """ The ending tag or pattern for identifying regions. """
+        self.allow_multiple_starts = allow_multiple_starts
+        """ True to ignore multiple starting match lines without an ending match line. """
         self.ignore_false_endings = ignore_false_endings
         """ Whether to ignore lines matching `end_tag` when not in a region. """
 
@@ -125,7 +129,8 @@ class CadFileHelper:
                     region_start = line_idx
                 else:
                     if not self.end_matches(line):
-                        raise RuntimeError("Error in CadFileHelper.get_next_region(): expected end to region but instead found second start!")
+                        if not self.allow_multiple_starts:
+                            raise RuntimeError("Error in CadFileHelper.get_next_region(): expected end to region but instead found second start!")
             
             if not start_matches and self.end_matches(line):
                 if in_region:
