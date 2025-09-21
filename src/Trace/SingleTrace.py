@@ -405,6 +405,7 @@ class SingleTrace(AbstractTrace):
             # multiple traces per route+layer). To do this we look for all
             # edges that join to each other.
             edge_groups: list[list[tuple[int, int, FLine]]] = []
+            solo_edge_groups: list[list[tuple[int, int, FLine]]] = []
             if ALLOW_MULTIPLE_TRACES_PER_ROUTE:
                 # find all end edges
                 solo_edges: list[tuple[int, int, FLine]] = []
@@ -424,16 +425,16 @@ class SingleTrace(AbstractTrace):
                         end_edges.append(edge)
                     elif n_matches == 2:
                         inner_edges.append(edge)
-                assert len(end_edges) >= 2
                 assert len(end_edges) % 2 == 0
 
                 # all solo edges are, by definition, an edge group
                 for edge in solo_edges:
-                    edge_groups.append([edge])
+                    solo_edge_groups.append([edge])
                 solo_edges.clear()
                 
                 # get the edges for each group
-                while True:
+                if len(end_edges) > 0:
+                    while True:
                     end_a = end_edges.pop()
                     edge_group = [end_a]
                     end_b: tuple[int, int, FLine] = None
@@ -466,12 +467,12 @@ class SingleTrace(AbstractTrace):
                     assert len(set(group_xy_points)) == len(edge_group)+1
                     edge_groups.append(edge_group)
 
-                    # check if we've found all the edge groups
-                    if len(sum(edge_groups, start=[])) >= len(edges):
-                        break
+                        # check if we've found all the edge groups
+                        if len(sum(edge_groups+solo_edge_groups, start=[])) >= len(edges):
+                            break
                 
                 # sanity check
-                assert len(sum(edge_groups, start=[])) == len(edges)
+                assert len(sum(edge_groups+solo_edge_groups, start=[])) == len(edges)
                 assert len(solo_edges) == 0
                 assert len(end_edges) == 0
                 assert len(inner_edges) == 0
@@ -504,6 +505,9 @@ class SingleTrace(AbstractTrace):
                 prev_edge = edge_group[-2]
                 if end_b[1] in prev_edge[:2]:
                     edge_group[-1] = (end_b[1], end_b[0], *end_b[2:])
+            
+            # include the solo edges
+            edge_groups += solo_edge_groups
 
         # # debugging
         # for edge in edges:
