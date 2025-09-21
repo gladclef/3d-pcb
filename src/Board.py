@@ -28,7 +28,7 @@ class Board:
         self.components = components
 
     @classmethod
-    def from_cad_file(cls, gencad_file: str) -> "Board":
+    def from_cad_file(cls, gencad_file: str, limit_layers: list[str] = None) -> "Board":
         lines = Line.from_file(gencad_file)
 
         shapes_helper = CadFileHelper("$SHAPES", "$ENDSHAPES")
@@ -46,6 +46,8 @@ class Board:
 
         traces, lines = get_instances(SingleTrace, lines)
         traces: list[SingleTrace] = traces
+        if limit_layers is not None:
+            traces = list(filter(lambda t: t.layer in limit_layers, traces))
         pre_lines, shapes_lines, post_lines = shapes_helper.get_next_region(lines)
         lines = pre_lines + post_lines
         shapes: list[Shape] = get_instances(Shape, shapes_lines)[0]
@@ -61,7 +63,7 @@ class Board:
         board = cls(gencad_file, traces, shapes, components)
         return board
 
-    def to_vtk(self) -> tuple[vtk.vtkPolyData, vtk.vtkPolyData]:
+    def to_vtk(self) -> tuple[vtk.vtkPolyData, vtk.vtkPolyData, vtk.vtkPolyData]:
         traces_polydata = vt.new_polydata()
         vias_polydata = vt.new_polydata()
         component_polydata = vt.new_polydata()
@@ -103,6 +105,7 @@ class Board:
 if __name__ == "__main__":
     dir = "C:/Users/bbean/Documents/3dprints/deej/models/v3/front pcb/deej front"
     board = Board.from_cad_file(os.path.join(dir, "deej front.cad"))
+    board = Board.from_cad_file(os.path.join(dir, "deej front.cad"), limit_layers=["BOTTOM"])
     board.draw_board()
 
     polydata = vt.new_polydata()

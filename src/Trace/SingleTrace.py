@@ -63,7 +63,7 @@ class SingleTrace(AbstractTrace):
             If True, overlapping segments are allowed, by default False.
         """
         linenos = [l.lineno for l in source_lines]
-        print(f"Creating {self.__class__.__name__} instance from lines ({min(linenos)+1}-{max(linenos)+1})")# +
+        print(f"Creating {self.__class__.__name__} instance on layer {layer} from lines ({min(linenos)+1}-{max(linenos)+1})")# +
         #      ":\n\t" + "\n\t".join([l.v.rstrip() for l in source_lines]))
         super().__init__(source_lines, xy_points, segments, shape)
 
