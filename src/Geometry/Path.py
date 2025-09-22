@@ -111,6 +111,129 @@ class Path:
         assert xy2 == segment.xy2
         return xy1, xy2
     
+    def insert_xypnt(self, new_xy_pnt: tuple[float, float], old_segment: LineSegment) -> tuple[LineSegment, LineSegment]:
+        """ Inserts a new xy point between the two points given by old_segment.
+
+        The old segment will be removed and two new segments made on either side of it.
+
+        Parameters
+        ----------
+        new_xy_pnt : tuple[float, float]
+            The new point to be inserted into this path.
+        old_segment : LineSegment
+            The old segment to be split into two segments.
+
+        Returns
+        -------
+        tuple[LineSegment, LineSegment]
+            The two new segments added around the new point.
+        """
+        assert old_segment in self.segments
+
+        # remove the old segment
+        for old_xypnts2seg_idx, (k, s) in enumerate(self._xypntindicies_2_segments):
+            if s == old_segment:
+                old_xypnts2seg = (k, s)
+        assert old_xypnts2seg
+        self._xypntindicies_2_segments.remove(old_xypnts2seg)
+
+        # insert the new point
+        prev_xy_pnt = old_segment.xy1
+        prev_xy_pnt_idx = self._xy_points.index(prev_xy_pnt)
+        self._xy_points.insert(prev_xy_pnt_idx+1, new_xy_pnt)
+
+        # create new segments
+        prev_segment = LineSegment(old_segment.xy1, new_xy_pnt, old_segment.source_line)
+        next_segment = LineSegment(new_xy_pnt, old_segment.xy2, old_segment.source_line)
+        xy1_idx, xy12_idx, xy2_idx = self.xy_points.index(prev_segment.xy1), self.xy_points.index(prev_segment.xy2), self.xy_points.index(next_segment.xy2)
+        assert xy1_idx >= 0
+        assert xy12_idx >= 0
+        assert xy2_idx >= 0
+
+        # insert the new segments
+        self._xypntindicies_2_segments.insert(old_xypnts2seg_idx+1, ((xy12_idx, xy2_idx), next_segment))
+        self._xypntindicies_2_segments.insert(old_xypnts2seg_idx+1, ((xy1_idx, xy12_idx), prev_segment))
+
+        return prev_segment, next_segment
+
+    def remove_xypnt(self, xy_pnt: tuple[float, float]) -> tuple[list[LineSegment], list[LineSegment]]:
+        """ Removes the given point from this instance.
+
+        To do this, we remove the point and generate new segments,
+        combining the properties of the adjacent segments.
+        TODO combine the properties instead of just using the previous
+        segment's properties.
+
+        Parameters
+        ----------
+        xy_pnt : tuple[float, float]
+            The point to be removed.
+
+        Returns
+        -------
+        old_segments: list[LineSegment]
+            The old line segments that were removed as part of removing the point.
+            There will be two of these in the case of a non-forking trace.
+        new_segments: list[LineSegment]
+            The new line segments that were added as part of removing the point.
+            There will be one of these in the case of a non-forking trace.
+        """
+        assert xy_pnt in self.xy_points
+        
+        # get the previous and next segments
+        old_segments = self.segments_at_xypnt(xy_pnt)
+        prev_segments: list[LineSegment] = []
+        next_segments: list[LineSegment] = []
+        for segment in old_segments:
+            if segment.xy1 == xy_pnt:
+                next_segments.append(segment)
+            else:
+                prev_segments.append(segment)
+        
+        # Get the indicies of the next segments.
+        # We'll insert our new segments at these indicies.
+        prev_xy2seg_indicies: list[int] = []
+        next_xy2seg_indicies: list[int] = []
+        for segment in prev_segments:
+            prev_xypnts_idxs = self.segment_xypnts_indicies(segment)
+            prev_xy2seg_indicies.append(self._xypntindicies_2_segments.index((prev_xypnts_idxs, segment)))
+        for segment in next_segments:
+            next_xypnts_idxs = self.segment_xypnts_indicies(segment)
+            next_xy2seg_indicies.append(self._xypntindicies_2_segments.index((next_xypnts_idxs, segment)))
+        assert all([idx >= 0 for idx in prev_xy2seg_indicies])
+        assert all([idx >= 0 for idx in next_xy2seg_indicies])
+
+        new_xy2seg_indicies = copy.copy(next_xy2seg_indicies)
+        for i, idx in enumerate(new_xy2seg_indicies):
+            for prev_idx in prev_xy2seg_indicies:
+                if prev_idx < idx:
+                    new_xy2seg_indicies[i] -= 1
+        
+        # remove the old point and segments
+        pnt_idx = self.xy_points.index(xy_pnt)
+        assert pnt_idx >= 0
+        _xypntindicies_2_segments_length_old = len(self._xypntindicies_2_segments)
+        self._xy_points.remove(xy_pnt)
+        for s in copy.copy(self._xypntindicies_2_segments):
+            if s[1] in old_segments:
+                self._xypntindicies_2_segments.remove(s)
+        _xypntindicies_2_segments_length_new = len(self._xypntindicies_2_segments)
+        assert _xypntindicies_2_segments_length_old - _xypntindicies_2_segments_length_new == len(old_segments)
+
+        # build new segments
+        new_segments: list[LineSegment] = []
+        prev_segment = prev_segments[0]
+        for new_idx, next_segment in zip(reversed(new_xy2seg_indicies), reversed(next_segments)):
+            xy1, xy2 = prev_segment.xy1, next_segment.xy2
+            new_segment = LineSegment(xy1, xy2, next_segment.source_line)
+            new_segments.append(new_segment)
+            xy1_idx, xy2_idx = self.xy_points.index(xy1), self._xy_points.index(xy2)
+            assert xy1_idx >= 0
+            assert xy2_idx >= 0
+            self._xypntindicies_2_segments.insert(new_idx, ((xy1_idx, xy2_idx), new_segment))
+
+        return old_segments, new_segments
+
     @staticmethod
     def _build_segment(xy_points: list[tuple[float, float]], segment: "_TraceLine") -> LineSegment:
         """

@@ -13,7 +13,9 @@ from Component.Pin import Pin
 from FileIO.CadFileHelper import CadFileHelper
 from FileIO.Line import Line as FLine
 import Geometry.geometry_tools as geo
+from Geometry.Line import Line
 from Geometry.LineSegment import LineSegment
+from Geometry.Path import Path
 from Trace.AbstractTrace import AbstractTrace
 from Trace.PipeShape import PipeShape, DEFAULT_PIPE_SHAPE
 from Trace.TraceCorner import TraceCorner
@@ -337,6 +339,82 @@ class SingleTrace(AbstractTrace):
         """
         for segment_points in self._xypnt_vtk_verticies.values():
             segment_points.inc_vtk_indicies(start, cnt)
+
+    def remove_xypnt(self, xy_pnt: tuple[float, float]) -> tuple[tuple[list[LineSegment], TraceCorner], list[LineSegment]]:
+        """ Removes the given xy_pnt.
+
+        Parameters
+        ----------
+        xy_pnt : tuple[float, float]
+            The point to be removed.
+
+        Returns
+        -------
+        old_segments_and_corner: tuple[tuple[list[LineSegment], TraceCorner]
+            The old segments and trace corner that were removed.
+        new_segments: list[LineSegment]]
+            The new segments that were added.
+        """
+        # deal with the segments
+        old_segments, new_segments = Path.remove_xypnt(self, xy_pnt)
+
+        # remove the old trace corner, if any
+        trace_corner = None
+        if xy_pnt in self.xypnt_trace_corners:
+            trace_corner = self.xypnt_trace_corners[xy_pnt]
+            del self.xypnt_trace_corners[xy_pnt]
+        
+        return (old_segments, trace_corner), new_segments
+
+    def cleanup(self):
+        """ Fixes and/or detects problems with the board that would make it difficult to boolean. """
+        def cleanup_short_traces():
+            while len(self.segments) >= 2:
+                found_short_trace = False
+
+                for segment in self.segments:
+                    if segment.length < g.TRACE_CORNER_RADIUS:
+                        linenos = [fl.lineno for fl in self.source_lines]
+                        print(f"Found short trace segment in lines {min(linenos)}-{max(linenos)}")
+
+                        # replace this xy_pair with the intersection of the previous and next lines
+                        prev_segments = list(filter(lambda s: s != segment, self.segments_at_xypnt(segment.xy1)))
+                        next_segments = list(filter(lambda s: s != segment, self.segments_at_xypnt(segment.xy2)))
+                        if len(prev_segments) == 0:
+                            # no previous line, replace with the next line
+                            self.remove_xypnt(segment.xy2)
+                        elif len(next_segments) == 0:
+                            # no next line, replace with the previous line
+                            self.remove_xypnt(segment.xy1)
+                        else:
+                            prev_segment = prev_segments[0]
+                            new_segments: list[LineSegment] = []
+                            for i, next_segment in enumerate(next_segments):
+                                # get the new point to insert
+                                prev_line = Line.from_two_points(prev_segment.xy1, prev_segment.xy2)
+                                next_line = Line.from_two_points(next_segment.xy1, next_segment.xy2)
+                                new_xy_pnt = prev_line.intersection(next_line)
+                                
+                                # remove this segment
+                                if i == 0:
+                                    _, new_segments = self.remove_xypnt(segment.xy1)
+
+                                # TODO fix this
+                                # # get the segment to be replaced
+                                # new_segment = list(filter(lambda s: s.xy2 == segment.xy2, new_segments))
+                                # assert len(new_segment) > 0
+                                # new_segment = new_segment[0]
+
+                                # # update the segment with an in-between point
+                                # self.insert_xypnt(segment.xy1, new_segment)
+
+                        found_short_trace = True
+                        break
+                
+                if not found_short_trace:
+                    break
+        
+        cleanup_short_traces()
 
     @classmethod
     def get_lines_for_next_trace(cls, cad_lines: list[FLine]):

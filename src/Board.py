@@ -28,6 +28,11 @@ class Board:
         self.shapes = shapes
         self.components = components
 
+    def cleanup(self):
+        """ Fixes and/or detects problems with the board that would make it difficult to boolean. """
+        for trace in self.traces:
+            trace.cleanup()
+
     @classmethod
     def from_cad_file(cls, gencad_file: str, limit_layers: list[str] = None) -> "Board":
         lines = Line.from_file(gencad_file)
@@ -106,15 +111,18 @@ class Board:
 if __name__ == "__main__":
     g.TRACE_CORNER_RADIUS = 0.6
 
-    example_name = "hello_light"
+    example_name = "deej"
     example_dir = os.path.join(os.path.dirname(__file__), "..", "examples", example_name)
-    board = Board.from_cad_file(os.path.join(example_dir, "exports", f"{example_name}.cad"))
+    limit_layers, layer_name = ["TOP"], "_top"
+
+    board = Board.from_cad_file(os.path.join(example_dir, "exports", f"{example_name}.cad"), limit_layers=limit_layers)
+    board.cleanup()
     board.draw_board()
 
     traces_pd, vias_pd, component_pd = board.to_vtk()
-    pyvista.PolyData(traces_pd).save(os.path.join(example_dir, "stls", f"{example_name}_traces.stl"))
-    pyvista.PolyData(vias_pd).save(os.path.join(example_dir, "stls", f"{example_name}_vias.stl"))
-    pyvista.PolyData(component_pd).save(os.path.join(example_dir, "stls", f"{example_name}_components.stl"))
+    pyvista.PolyData(traces_pd).save(os.path.join(example_dir, "stls", f"{example_name}_traces{layer_name}.stl"))
+    pyvista.PolyData(vias_pd).save(os.path.join(example_dir, "stls", f"{example_name}_vias{layer_name}.stl"))
+    pyvista.PolyData(component_pd).save(os.path.join(example_dir, "stls", f"{example_name}_components{layer_name}.stl"))
 
     polydata = vt.new_polydata()
     vt.join(polydata, traces_pd)
@@ -126,4 +134,4 @@ if __name__ == "__main__":
     pyvista.global_theme.allow_empty_mesh = True
     mesh.plot(show_edges=True, opacity=1, show_vertices=True)
     # pyvista.PolyDataFilters.plot_normals(mesh, mag=0.5, flip=False, faces=False, show_edges=True, opacity=0.95, show_verticies=True)
-    mesh.save(os.path.join(example_dir, "stls", f"{example_name}_full.stl"))
+    mesh.save(os.path.join(example_dir, "stls", f"{example_name}_full{layer_name}.stl"))
