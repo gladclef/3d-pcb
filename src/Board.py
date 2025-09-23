@@ -28,13 +28,15 @@ class Board:
         self.shapes = shapes
         self.components = components
 
+        self.limit_layers: list[str] = None
+
     def cleanup(self):
         """ Fixes and/or detects problems with the board that would make it difficult to boolean. """
         for trace in self.traces:
             trace.cleanup()
 
     @classmethod
-    def from_cad_file(cls, gencad_file: str, limit_layers: list[str] = None) -> "Board":
+    def from_cad_file(cls, gencad_file: str) -> "Board":
         lines = Line.from_file(gencad_file)
 
         shapes_helper = CadFileHelper("$SHAPES", "$ENDSHAPES")
@@ -52,8 +54,6 @@ class Board:
 
         traces, lines = get_instances(SingleTrace, lines)
         traces: list[SingleTrace] = traces
-        if limit_layers is not None:
-            traces = list(filter(lambda t: t.layer in limit_layers, traces))
         pre_lines, shapes_lines, post_lines = shapes_helper.get_next_region(lines)
         lines = pre_lines + post_lines
         shapes: list[Shape] = get_instances(Shape, shapes_lines)[0]
@@ -75,6 +75,9 @@ class Board:
         component_polydata = vt.new_polydata()
 
         for trace in self.traces:
+            if self.limit_layers is not None:
+                if trace.layer not in self.limit_layers:
+                    continue
             trace = copy.deepcopy(trace)
             trace.to_vtk(traces_polydata, vias_polydata)
 
@@ -101,6 +104,9 @@ class Board:
 
         # draw the segments
         for trace in self.traces:
+            if self.limit_layers is not None:
+                if trace.layer not in self.limit_layers:
+                    continue
             trace.draw(ax)
 
         # show the plot
@@ -113,9 +119,10 @@ if __name__ == "__main__":
 
     example_name = "deej"
     example_dir = os.path.join(os.path.dirname(__file__), "..", "examples", example_name)
-    limit_layers, layer_name = ["TOP"], "_top"
+    limit_layers, layer_name = ["BOTTOM"], "_bottom"
 
-    board = Board.from_cad_file(os.path.join(example_dir, "exports", f"{example_name}.cad"), limit_layers=limit_layers)
+    board = Board.from_cad_file(os.path.join(example_dir, "exports", f"{example_name}.cad"))
+    board.limit_layers = limit_layers
     board.cleanup()
     board.draw_board()
 

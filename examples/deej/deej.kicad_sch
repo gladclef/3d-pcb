@@ -1227,6 +1227,76 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "Adafruit:Through_Hole_0.1in_1_Pin 4154"
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "p"
+				(at -1.016 1.524 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Value" ""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" ""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "Through_Hole_0.1in_1_Pin 4154_1_1"
+				(pin bidirectional line
+					(at -2.54 0 0)
+					(length 2.54)
+					(name "p"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "Adafruit:Through_Hole_0.1in_8_Pin_4154"
 			(exclude_from_sim no)
 			(in_bom yes)
@@ -1797,6 +1867,16 @@
 	)
 	(wire
 		(pts
+			(xy 129.54 124.46) (xy 133.35 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "00136e57-7088-4336-90dd-3008c69ceba5")
+	)
+	(wire
+		(pts
 			(xy 187.96 110.49) (xy 187.96 114.3)
 		)
 		(stroke
@@ -2217,6 +2297,16 @@
 	)
 	(wire
 		(pts
+			(xy 176.53 124.46) (xy 179.07 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4141744c-efb5-448b-81b3-8f47303ee137")
+	)
+	(wire
+		(pts
 			(xy 133.35 76.2) (xy 138.43 76.2)
 		)
 		(stroke
@@ -2607,6 +2697,16 @@
 	)
 	(wire
 		(pts
+			(xy 129.54 121.92) (xy 138.43 121.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7cbae041-7a76-4419-a78a-a4e40b1cf9c3")
+	)
+	(wire
+		(pts
 			(xy 80.01 128.27) (xy 85.09 128.27)
 		)
 		(stroke
@@ -2694,16 +2794,6 @@
 			(type default)
 		)
 		(uuid "8d3f69f6-22e3-4013-bb49-b1fdb9dc4bbd")
-	)
-	(wire
-		(pts
-			(xy 177.8 124.46) (xy 179.07 124.46)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "8d457b7c-e9a7-4191-adcc-f64a9e87287d")
 	)
 	(wire
 		(pts
@@ -2954,16 +3044,6 @@
 			(type default)
 		)
 		(uuid "c0745b26-1dab-47c4-a7d8-c77c8d88cbfe")
-	)
-	(bus
-		(pts
-			(xy 176.53 124.46) (xy 181.61 124.46)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c3a9ac1a-8504-460d-8ced-6d9812566abe")
 	)
 	(wire
 		(pts
@@ -3224,6 +3304,16 @@
 			(justify left bottom)
 		)
 		(uuid "071c2dc9-9a7f-4cec-9d8b-19ff74b01211")
+	)
+	(label "CHRG"
+		(at 129.54 121.92 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "0cb70a37-fdda-4abf-9a6b-28cc1bcc4d8d")
 	)
 	(label "GND"
 		(at 26.67 87.63 0)
@@ -3494,6 +3584,16 @@
 			(justify left bottom)
 		)
 		(uuid "c27d06bb-60de-4db2-b281-a7ce2373d162")
+	)
+	(label "GND"
+		(at 129.54 124.46 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "c5a77bb5-c9cb-4d3c-a79b-5d094a2a18f7")
 	)
 	(label "VBAT"
 		(at 134.62 119.38 0)
@@ -4143,6 +4243,71 @@
 		)
 	)
 	(symbol
+		(lib_id "Adafruit:Through_Hole_0.1in_1_Pin 4154")
+		(at 127 124.46 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "3a71364d-bd07-4494-8a36-84a8513678cd")
+		(property "Reference" "p8"
+			(at 128.016 125.984 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "CHRG"
+			(at 122.682 124.714 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 127 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 127 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 127 124.46 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "b50a8bc5-576b-4b3d-8248-8c046433805a")
+		)
+		(instances
+			(project "deej"
+				(path "/34a0193a-017c-4da7-89e8-0cf139391c49"
+					(reference "p8")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "SparkFun-Resistor:R_Potentiometer_Slide35mm")
 		(at 88.9 97.79 0)
 		(unit 1)
@@ -4452,6 +4617,71 @@
 			(project ""
 				(path "/34a0193a-017c-4da7-89e8-0cf139391c49"
 					(reference "p6")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Adafruit:Through_Hole_0.1in_1_Pin 4154")
+		(at 127 121.92 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "4de730b3-fe88-4548-9662-769d8040da53")
+		(property "Reference" "p7"
+			(at 128.016 123.444 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "CHRG"
+			(at 122.682 122.174 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 127 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 127 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 127 121.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "96eb1cf6-e884-422f-8027-08f9f6a8b8fd")
+		)
+		(instances
+			(project ""
+				(path "/34a0193a-017c-4da7-89e8-0cf139391c49"
+					(reference "p7")
 					(unit 1)
 				)
 			)
