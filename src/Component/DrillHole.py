@@ -83,7 +83,7 @@ class DrillHole(ABC):
         cylinder = vtk.vtkCylinderSource()
         cylinder.SetRadius(radius)
         cylinder.SetHeight(height)
-        cylinder.SetResolution(32)
+        cylinder.SetResolution(g.CIRCLE_RESOLUTION)
         cylinder.CappingOn()
         cylinder.Update()
 

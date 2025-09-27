@@ -11,8 +11,10 @@ from Component.Shape import Shape
 from FileIO.Line import Line
 from FileIO.CadFileHelper import CadFileHelper
 from Trace.SingleTrace import SingleTrace
-import tool.vtk_tools as vt
+from Trace.PipeShape import DEFAULT_PIPE_SHAPE
 from tool.globals import board_parameters as g
+from tool.units import awg2mm
+import tool.vtk_tools as vt
 
 T = TypeVar('T')
 
@@ -115,7 +117,9 @@ class Board:
 
         
 if __name__ == "__main__":
+    g.DEFAULT_WIRE_DIAMETER = awg2mm(24)
     g.TRACE_CORNER_RADIUS = 0.6
+    g.CIRCLE_RESOLUTION = 16
 
     example_name = "deej"
     example_dir = os.path.join(os.path.dirname(__file__), "..", "examples", example_name)

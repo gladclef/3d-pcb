@@ -6,6 +6,7 @@ from Geometry.Line import Line
 from Geometry.Path import Path
 import Geometry.geometry_tools as geo
 from Geometry.LineSegment import LineSegment
+from tool.globals import board_parameters as g
 
 class PathCorner:
     def __init__(self, parent: Path, segments: tuple[LineSegment, LineSegment], bend_radius: float):
@@ -288,7 +289,7 @@ if __name__ == "__main__":
             [0, 1],
             [1, 2]
         ]
-        shape = DEFAULT_PIPE_SHAPE(awg2mm(26))
+        shape = DEFAULT_PIPE_SHAPE(g.DEFAULT_WIRE_DIAMETER)
         trace = SingleTrace(xy_points, segments, shape)
         corner = PathCorner(trace, trace.segments, 1)
 

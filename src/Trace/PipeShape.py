@@ -252,7 +252,7 @@ class PipeBasicCircle(PipeShape):
         xz_pointz.append([opening_radius/2, opening_intersection_z])
 
         # generate a circle for the trace
-        resolution = 32
+        resolution = g.CIRCLE_RESOLUTION
         for i in range(resolution):
             angle = 2*np.pi/resolution*i
             angle += np.pi/2

@@ -824,7 +824,7 @@ def _tst_trace_from_points():
     ]
     trace_edges = [(i, i+1) for i in range(len(trace_points)-1)]
 
-    test_trace = SingleTrace(trace_points, trace_edges, DEFAULT_PIPE_SHAPE(awg2mm(26)), allow_overlap=True)
+    test_trace = SingleTrace(trace_points, trace_edges, DEFAULT_PIPE_SHAPE(g.DEFAULT_WIRE_DIAMETER), allow_overlap=True)
     return test_trace
 
 

@@ -7,6 +7,7 @@ from FileIO.Line import Line as FLine
 from Geometry.LineSegment import LineSegment
 from Geometry.Path import Path
 from Trace.PipeShape import PipeShape, DEFAULT_PIPE_SHAPE
+from tool.globals import board_parameters as g
 from tool.units import *
 
 class AbstractTrace(Path, PntInc, ABC):
@@ -22,7 +23,7 @@ class AbstractTrace(Path, PntInc, ABC):
 
         # set some defaults
         if shape is None:
-            shape = DEFAULT_PIPE_SHAPE(awg2mm(26))
+            shape = DEFAULT_PIPE_SHAPE(g.DEFAULT_WIRE_DIAMETER)
 
         self.shape = shape
 

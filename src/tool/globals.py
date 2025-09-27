@@ -46,6 +46,10 @@ class _Globals:
         """
         The radius of bends for the trace corners in millimeters.
         """
+        self.DEFAULT_WIRE_DIAMETER = awg2mm(26)
+        """
+        Wire diameter modeled during pipe trace generation. Default is 26 AWG.
+        """
 
         ##################
         # tunable values #
@@ -74,6 +78,10 @@ class _Globals:
         Additional value added to (or subtraced from) the drill hole diameter.
         Increasing this value will make it easier to fit through-hole components
         through the drill holes.
+        """
+        self.CIRCLE_RESOLUTION = 32
+        """
+        Number of points used to simulate a circle.
         """
     
     @classmethod
