@@ -548,7 +548,7 @@ class SingleTrace(AbstractTrace):
                         if (edge.xy1_idx in other_edge.xy_idxs) or (edge.xy2_idx in other_edge.xy_idxs):
                             n_matches += 1
                             matching_edges += str(other_edge) + "\n\t\t"
-                    assert n_matches <= 2, f"Found more than 2 matching edges for !\n\tSource edge:\n\t\t{edge}\n\tMatching edges:\n\t\t{matching_edges}\nIs it possible that you have traces that fork?"
+                    assert n_matches <= 2, f"Found more than 2 matching edges for source edge!\n\tSource edge:\n\t\t{edge}\n\tMatching edges:\n\t\t{matching_edges}\nIs it possible that you have traces that fork?"
                     if n_matches == 0:
                         edge.is_solo = True
                     elif n_matches == 1:
