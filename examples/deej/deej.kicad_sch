@@ -1734,12 +1734,6 @@
 		(uuid "230bd564-be34-4ba1-b141-8dfb885e04e7")
 	)
 	(junction
-		(at 135.89 85.09)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "33792b37-848a-4423-861b-fde4e472a018")
-	)
-	(junction
 		(at 135.89 83.82)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -2034,16 +2028,6 @@
 			(type default)
 		)
 		(uuid "1bff665d-5b1f-4afc-ab11-6c788a848bf0")
-	)
-	(wire
-		(pts
-			(xy 118.11 105.41) (xy 121.92 105.41)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "1d3bd6c1-f7fd-475c-8ada-c322436a2626")
 	)
 	(wire
 		(pts
@@ -2417,16 +2401,6 @@
 	)
 	(wire
 		(pts
-			(xy 135.89 85.09) (xy 135.89 100.33)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "52c3c7f0-b46a-43c7-ad0e-9d55150999df")
-	)
-	(wire
-		(pts
 			(xy 186.69 100.33) (xy 191.77 100.33)
 		)
 		(stroke
@@ -2544,16 +2518,6 @@
 			(type default)
 		)
 		(uuid "67527c96-e163-4f06-8c61-69580c9dca20")
-	)
-	(wire
-		(pts
-			(xy 121.92 100.33) (xy 135.89 100.33)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "68ce4489-1bf2-4c89-bd63-6e23be884a42")
 	)
 	(wire
 		(pts
@@ -2827,6 +2791,16 @@
 	)
 	(wire
 		(pts
+			(xy 118.11 100.33) (xy 121.92 100.33)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9166f396-d112-454c-a70d-15770a3102a7")
+	)
+	(wire
+		(pts
 			(xy 212.09 102.87) (xy 232.41 102.87)
 		)
 		(stroke
@@ -2834,6 +2808,16 @@
 			(type default)
 		)
 		(uuid "9441c84d-ff5d-441d-ac54-62dbff166a26")
+	)
+	(wire
+		(pts
+			(xy 118.11 102.87) (xy 121.92 102.87)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "97014054-9ef3-43a8-8590-f0220330ae93")
 	)
 	(wire
 		(pts
@@ -3034,16 +3018,6 @@
 			(type default)
 		)
 		(uuid "be24cfd3-0855-468b-a946-d4a9bb98ca37")
-	)
-	(wire
-		(pts
-			(xy 118.11 102.87) (xy 121.92 102.87)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c0745b26-1dab-47c4-a7d8-c77c8d88cbfe")
 	)
 	(wire
 		(pts
@@ -3506,7 +3480,7 @@
 		(uuid "8b6bda62-1514-4a07-a892-49a9aab0ce1a")
 	)
 	(label "SDA"
-		(at 118.11 105.41 0)
+		(at 118.11 102.87 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3556,7 +3530,7 @@
 		(uuid "b1d61059-0f9f-4ab8-8a47-9a1bf7c44a92")
 	)
 	(label "SCL"
-		(at 118.11 102.87 0)
+		(at 118.11 100.33 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4268,7 +4242,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Adafruit:Through Hole 0.1in 1 Pin"
 			(at 127 124.46 0)
 			(effects
 				(font
@@ -4648,7 +4622,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Adafruit:Through Hole 0.1in 1 Pin"
 			(at 127 121.92 0)
 			(effects
 				(font
