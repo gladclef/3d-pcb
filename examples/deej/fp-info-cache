@@ -1,4 +1,4 @@
-27197924914261761
+27199685277406195
 Adafruit
 ADC_5836
 
@@ -6,6 +6,13 @@ ADC_5836
 0
 16
 16
+Adafruit
+DEMUX_MCP23008_593
+https://www.adafruit.com/product/593
+
+0
+18
+18
 Adafruit
 LED_299
 
