@@ -10,6 +10,7 @@ import vtk
 
 from Geometry.Point import Point
 from tool.units import *
+from FileIO.Line import Line as FLine
 import Geometry.geometry_tools as geo
 from Trace.VtkPointGroup import VtkPointGroup
 from tool.globals import board_parameters as g
@@ -18,7 +19,7 @@ import tool.vtk_tools as vt
 class DrillHole(ABC):
     """ Represents a drill hole in a circuit board. """
 
-    def __init__(self, location: Point, is_via=False, is_through_hole=False, diameter: float=None):
+    def __init__(self, location: Point, is_via=False, is_through_hole=False, diameter: float=None, source_lines: list[FLine]=None):
         """
         Initialize the DrillHole instance.
 
@@ -37,6 +38,7 @@ class DrillHole(ABC):
 
         self._diameter = diameter
         """ The diameter used for manually specified drill holes. """
+        self.source_lines = [] if source_lines is None else source_lines
 
     @property
     def diameter(self) -> float:

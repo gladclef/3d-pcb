@@ -83,7 +83,8 @@ class SingleTrace(AbstractTrace):
                  segments: list[tuple[int, int] | tuple[int, int, FLine]] | list[LineSegment],
                  shape: PipeShape=None,
                  bend_radius: float=1,
-                 allow_overlap=False):
+                 allow_overlap=False,
+                 inner_vias: list[Via]=None):
         """
         Initializes a SingleTrace object.
 
@@ -107,6 +108,8 @@ class SingleTrace(AbstractTrace):
             bend radius. By default TRACE_CORNER_RADIUS.
         allow_overlap : bool, optional
             If True, overlapping segments are allowed, by default False.
+        inner_vias : list, optional
+            Vias defined as part of a route.
         """
         linenos = [l.lineno for l in source_lines]
         print(f"Creating {self.__class__.__name__} instance on layer {layer} from lines ({min(linenos)+1}-{max(linenos)+1})")# +
@@ -130,6 +133,8 @@ class SingleTrace(AbstractTrace):
         """
         self.pins: dict[str, Pin] = { "a": None, "b": None }
         """ The pins that indicate where to put vias at either end of this trace. """
+        self.inner_vias: dict[Point, Via] = {}
+        """ Vias defined as part of a route. """
 
         self.check_segment_duplicates(self.segments)
         if not allow_overlap:
@@ -175,7 +180,9 @@ class SingleTrace(AbstractTrace):
 
                 intersection = segment1.intersection(segment2)
                 if intersection is not None:
-                    raise ValueError(f"Error in SingleTrace.check_segments_overlap(): segments {s1idx} ({segment1}) and {s2idx} ({segment2}) overlap at [{intersection}].")
+                    linenos = [l.lineno for l in self.source_lines]
+                    raise ValueError(f"Error in SingleTrace.check_segments_overlap(): segments {s1idx} ({segment1}) and {s2idx} ({segment2}) overlap at [{intersection}].\n"
+                                     + f"\tLines: {min(linenos)}-{max(linenos)}")
 
     def get_trace_corner(self, xy_pnt: Point, segment_idx: int, segment: LineSegment) -> TraceCorner | None:
         """
@@ -538,6 +545,15 @@ class SingleTrace(AbstractTrace):
             edges.append(_TraceLine(segment_line, point1_idx, point2_idx))
         xy_points: list[Point] = [Point(in2mm(p.x), in2mm(p.y)) for p in xy_points_orig]
 
+        # parse the vias for this route
+        vias, l = Via.from_cad_file(trace)
+        inner_vias: dict[Point, Via] = {}
+        while len(vias) > 0:
+            for via in vias:
+                inner_vias[via.location] = via
+                print(f"Found inner via for single trace at line {via.source_lines[0].lineno}")
+            vias, l = Via.from_cad_file(l)
+
         if len(edges) == 1:
             edge_groups = [edges]
         else:
@@ -554,6 +570,7 @@ class SingleTrace(AbstractTrace):
                         if (edge.xy1_idx in other_edge.xy_idxs) or (edge.xy2_idx in other_edge.xy_idxs):
                             n_matches += 1
                             matching_edges += str(other_edge) + "\n\t\t"
+                    # this is probably where the logic for handling branching traces would go
                     assert n_matches <= 2, f"Found more than 2 matching edges for source edge!\n\tSource edge:\n\t\t{edge}\n\tMatching edges:\n\t\t{matching_edges}\nIs it possible that you have traces that fork?"
                     if n_matches == 0:
                         edge.is_solo = True
@@ -659,8 +676,9 @@ class SingleTrace(AbstractTrace):
         ret = []
         for edge_group in edge_groups:
             source_lines = [e.fline for e in edge_group]
-            instance = cls(source_lines, layer_name, xy_points, edge_group, shape, bend_radius)
+            instance = cls(source_lines, layer_name, xy_points, edge_group, shape, bend_radius, inner_vias=inner_vias)
             ret.append( instance )
+            inner_vias = {} # only need one copy
 
         return ret, pre_trace + post_trace
 

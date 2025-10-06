@@ -10,6 +10,7 @@ import vtk
 from Component.DrillHole import DrillHole
 from Geometry.Point import Point
 from tool.units import *
+from FileIO.Line import Line as FLine
 import Geometry.geometry_tools as geo
 from Trace.VtkPointGroup import VtkPointGroup
 from tool.globals import board_parameters as g
@@ -18,7 +19,7 @@ import tool.vtk_tools as vt
 class Via(DrillHole):
     """Represents a single via for a trace."""
 
-    def __init__(self, location: Point):
+    def __init__(self, location: Point, name: str="?", source_lines: list[FLine] = None):
         """
         Initialize the Via instance.
 
@@ -28,7 +29,9 @@ class Via(DrillHole):
             The location of the via relative to the board origin.
 
         """
-        super().__init__(location, is_via=True)
+        super().__init__(location, source_lines=source_lines, is_via=True)
+
+        self.name = name
 
     def apply_translation_rotation_layer(self, translation: tuple[float, float] | Point, rotation: float, is_bottom: bool) -> "Via":
         """
@@ -56,19 +59,19 @@ class Via(DrillHole):
         return ret
 
     @classmethod
-    def from_cad_file(cls, lines: list[str]) -> tuple[list["Via"], list[str]]:
+    def from_cad_file(cls, cad_lines: list[FLine]) -> tuple[list["Via"], list[FLine]]:
         """
         Create a Via instance by parsing lines from a CAD file.
 
         Parameters
         ----------
-        lines : list[str]
+        lines : list[FLine]
             Lines of text representing the via in a CAD file.
 
         Returns
         -------
-        tuple[Via, list[str]]
-            A tuple containing the created Via and any remaining unprocessed lines.
+        tuple[list[Via], list[FLine]]
+            A tuple containing the created Via(s) and any remaining unprocessed lines.
 
         Raises
         ------
@@ -76,6 +79,30 @@ class Via(DrillHole):
             If the via line does not match the expected pattern.
 
         """
-        # TODO
-        print("TODO: import vias from gencad files")
-        return [], lines
+        # find the next via line, if any
+        pre_via, via, post_via = [], None, []
+        for i, line in enumerate(cad_lines):
+            if line.v.startswith("VIA "):
+                pre_via = cad_lines[:i]
+                via = line
+                post_via = cad_lines[i+1:]
+                break
+        if via is None:
+            return [], cad_lines
+
+        # Example via line:
+        #     ?          ?       ?       x     y      ?   ?         name
+        # VIA VIA1200000.1000000.1010101 2.125 -6.275 ALL 0.0393701 via3
+        #                              ?            ?            ?           x            y            ?        ?            name
+        via_pattern = re.compile(r"VIA ([0-9A-Z]+)\.([0-9A-Z]+)\.([0-9A-Z]+) (-?[0-9\.]+) (-?[0-9\.]+) ([A-Z]+) (-?[0-9\.]+) (.*)")
+        m = via_pattern.match(via.v.strip())
+        if m is None:
+            raise RuntimeError(f"Error in Via.from_cad_file: via line {via.lineno} from doesn't match expected pattern!\n\tLine: {via.v.strip()}\n\tSource file: {via.sourcefile}")
+        x = float(m.groups()[3])
+        y = float(m.groups()[4])
+        name = m.groups()[7]
+        ret = Via(Point(x, y), name, [via])
+
+        print(f"Parsed via on line {via.lineno}")
+
+        return [ret], pre_via + post_via
