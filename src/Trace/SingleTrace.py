@@ -161,10 +161,10 @@ class SingleTrace(AbstractTrace):
                     # don't check for self-segment intersections
                     continue
 
-                if segment1.xy1 == segment2.xy1 or \
-                    segment1.xy1 == segment2.xy2 or \
-                    segment1.xy2 == segment2.xy1 or \
-                    segment1.xy2 == segment2.xy2:
+                if segment1.xy1.almost_equal(segment2.xy1) < 1e-4 or \
+                    segment1.xy1.almost_equal(segment2.xy2) < 1e-4 or \
+                    segment1.xy2.almost_equal(segment2.xy1) < 1e-4 or \
+                    segment1.xy2.almost_equal(segment2.xy2) < 1e-4:
                     # don't check for intersections with segments that share one of the end points
                     continue
 
@@ -205,9 +205,9 @@ class SingleTrace(AbstractTrace):
             return None
 
         if xy_pnt not in self.xypnt_trace_corners:
-            if xy_pnt == segment.xy2:
+            if xy_pnt.almost_equal(segment.xy2):
                 segment_a, segment_b = segment, self.segments[segment_idx+1]
-            elif xy_pnt == segment.xy1:
+            elif xy_pnt.almost_equal(segment.xy1):
                 segment_a, segment_b = self.segments[segment_idx-1], segment
             else:
                 raise RuntimeError("Error in SingleTrace.get_trace_corner(): " + "xy_pnt != segment.xy1 and xy_pnt != segment.xy2")
@@ -243,9 +243,9 @@ class SingleTrace(AbstractTrace):
                 self._xypnt_vtk_verticies[xy_pnt] = VtkPointGroup(xyz_points)
 
             else:
-                if segment.xy1 == xy_pnt:
+                if segment.xy1.almost_equal(xy_pnt):
                     return corner.get_vtk_group(corner.n_points-1)
-                elif segment.xy2 == xy_pnt:
+                elif segment.xy2.almost_equal(xy_pnt):
                     return corner.get_vtk_group(0)
                 else:
                     raise RuntimeError("Error in SingleTrace.get_xypnt_vtk_verticies(): " + f"expected the xy_point to be at the beginning or end of the given segment, " + f"but {xy_pnt=} and {segment.xy1=} and {segment.xy2=}!")
