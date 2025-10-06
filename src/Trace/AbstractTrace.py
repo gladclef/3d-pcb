@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 import vtk
 
+from Geometry.Point import Point
 from Trace.AbstractVtkPointTracker import AbstractVtkPointTracker as PntInc
 from FileIO.Line import Line as FLine
 from Geometry.LineSegment import LineSegment
@@ -16,7 +17,7 @@ class AbstractTrace(Path, PntInc, ABC):
     """
     def __init__(self,
                  source_lines: list[FLine],
-                 xy_points: list[tuple[float, float]],
+                 xy_points: list[Point],
                  segments: list[tuple[int, int] | tuple[int, int, FLine]] | list[LineSegment],
                  shape: PipeShape=None):
         Path.__init__(self, source_lines, xy_points, segments)

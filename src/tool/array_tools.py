@@ -1,7 +1,9 @@
 from typing import Literal
 import numpy as np
 
-def tuple_from_array(arr: np.ndarray | tuple, expected_lengths: int | list[int], desired_len) -> tuple[tuple, int, str]:
+from Geometry.Point import Point
+
+def tuple_from_array(arr: np.ndarray | tuple | Point, expected_lengths: int | list[int], desired_len) -> tuple[tuple, int, str]:
     """
     Convert a numpy array or tuple to a specified format.
 
@@ -38,6 +40,9 @@ def tuple_from_array(arr: np.ndarray | tuple, expected_lengths: int | list[int],
         input_type = "tuple"
         input_len = len(arr)
         tvals = arr
+    
+    elif isinstance(arr, Point):
+        return tuple_from_array((arr.x, arr.y), expected_lengths, desired_len)
 
     else:
         if arr.shape[0] == 1:

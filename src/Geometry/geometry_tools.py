@@ -3,6 +3,7 @@ from typing import overload
 
 import numpy as np
 from scipy.spatial.transform import Rotation
+from Geometry.Point import Point
 import tool.array_tools as at
 
 INF_THRESH = 1e6
@@ -23,8 +24,8 @@ def angle_to_slope(angle: float) -> float:
     """ Returns the slope (rise / run) for the given angle. """
     return math.sin(angle) / math.cos(angle)
 
-def apply_translation_rotation_flip(xy_or_xyz: tuple[float, float] | tuple[float, float, float] | np.ndarray,
-                                    translation: tuple[float, float],
+def apply_translation_rotation_flip(xy_or_xyz: tuple[float, float] | Point | tuple[float, float, float] | np.ndarray,
+                                    translation: tuple[float, float] | Point,
                                     rotation: float,
                                     flip: bool) -> np.ndarray | tuple:
     """
@@ -32,10 +33,10 @@ def apply_translation_rotation_flip(xy_or_xyz: tuple[float, float] | tuple[float
 
     Parameters
     ----------
-    xy_or_xyz : Union[tuple[float, float], tuple[float, float, float], np.ndarray]
+    xy_or_xyz : Union[tuple[float, float], Point, tuple[float, float, float], np.ndarray]
         A tuple or numpy array representing the input coordinates.
         Can be 2D (x, y) or 3D (x, y, z).
-    translation : tuple[float, float]
+    translation : tuple[float, float], Point
         Translation vector (tx, ty).
     rotation : float
         Rotation angle in radians around the z-axis.
@@ -62,6 +63,7 @@ def apply_translation_rotation_flip(xy_or_xyz: tuple[float, float] | tuple[float
     x, y, z = tuple(rotated.tolist())
 
     # apply translation
+    x, y = translation if isinstance(translation, tuple) else (translation.x, translation.y)
     x += translation[0]
     y += translation[1]
 

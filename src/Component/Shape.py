@@ -10,6 +10,7 @@ from Component.Line import Line
 from Component.Pin import Pin
 from FileIO.CadFileHelper import CadFileHelper
 from FileIO.Line import Line as FLine
+from Geometry.Point import Point
 
 class Shape:
     """
@@ -54,7 +55,7 @@ class Shape:
         """
         return self.short_name + ":" + self.type_name
 
-    def apply_translation_rotation_layer(self, translation: tuple[float, float], rotation: float, is_bottom: bool) -> "Shape":
+    def apply_translation_rotation_layer(self, translation: tuple[float, float] | Point, rotation: float, is_bottom: bool) -> "Shape":
         """
         Applies a transformation to this `Shape` by translating and rotating its pins.
 
@@ -62,7 +63,7 @@ class Shape:
 
         Parameters
         ----------
-        translation : tuple[float, float]
+        translation : tuple[float, float] | Point
             Translation vector as (x, y).
         rotation : float
             Rotation angle in radians.

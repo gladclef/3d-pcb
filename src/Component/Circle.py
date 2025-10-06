@@ -6,23 +6,24 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from FileIO.Line import Line as FLine
+from Geometry.Point import Point
 from tool.units import *
 import Geometry.geometry_tools as geo
 
 class Circle:
     """ Represents a circle used in the outline of a component shape. """
 
-    def __init__(self, center_point: tuple[float, float], radius: float):
+    def __init__(self, center_point: Point, radius: float):
         self.center_point = center_point
         self.radius = radius
 
-    def apply_translation_rotation_layer(self, translation: tuple[float, float], rotation: float, is_bottom: bool) -> "Circle":
+    def apply_translation_rotation_layer(self, translation: Point, rotation: float, is_bottom: bool) -> "Circle":
         """
         Apply translation and rotation to the circle, with optional flipping.
 
         Parameters
         ----------
-        translation : tuple[float, float]
+        translation : Point
             Translation vector (x, y).
         rotation : float
             Rotation angle in radians.
@@ -82,10 +83,10 @@ class Circle:
             raise RuntimeError("Error in Circle.from_cad_file(): failed to match circle_pattern to line:\n\t" + circle_line.v)
 
         center_x, center_y, radius = match.groups()
-        center_x, center_y = in2mm(float(center_x)), in2mm(float(center_y))
+        center = Point(in2mm(float(center_x)), in2mm(float(center_y)))
         radius = in2mm(float(radius))
 
-        circle = cls((center_x, center_y), radius)
+        circle = cls(center, radius)
         return [circle], ret_lines
 
     def draw(self, ax: maxis.Axis):

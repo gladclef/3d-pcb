@@ -8,6 +8,7 @@ from scipy.spatial.transform import Rotation
 import vtk
 
 from Component.DrillHole import DrillHole
+from Geometry.Point import Point
 from tool.units import *
 from FileIO.Line import Line as FLine
 import Geometry.geometry_tools as geo
@@ -22,8 +23,7 @@ class Pin(DrillHole):
                  parent: "Shape",
                  pin_description: str,
                  pad_name: str,
-                 x_offset: float,
-                 y_offset: float,
+                 location: Point,
                  layer: str,
                  is_pad=False):
         """
@@ -37,17 +37,15 @@ class Pin(DrillHole):
             A description of this pin. I think this is the name assigned on the component template?
         pad_name : str
             The name of the pad stack for this pin.
-        x_offset : float
-            The x offset of the pin from its origin.
-        y_offset : float
-            The y offset of the pin from its origin.
+        location : Point
+            The location of the pin relative to its origin.
         layer : str
             The layer on which the pin is placed. Example "TOP" or "BOTTOM"
         is_pad : bool
             True if this instance is a pad, or False if it's a through-hole.
 
         """
-        super().__init__(x_offset, y_offset, is_through_hole=True)
+        super().__init__(location, is_through_hole=True)
 
         self.parent = parent
         """The shape that contains this pin."""
@@ -60,13 +58,13 @@ class Pin(DrillHole):
         self.is_pad = is_pad
         """True if this instance is a pad, or False if it's a through-hole."""
 
-    def apply_translation_rotation_layer(self, translation: tuple[float, float], rotation: float, is_bottom: bool) -> "Pin":
+    def apply_translation_rotation_layer(self, translation: tuple[float, float] | Point, rotation: float, is_bottom: bool) -> "Pin":
         """
         Apply translation and rotation to the pin, with optional flipping.
 
         Parameters
         ----------
-        translation : tuple[float, float]
+        translation : tuple[float, float] | Point
             Translation vector (x, y).
         rotation : float
             Rotation angle in radians.
@@ -128,9 +126,8 @@ class Pin(DrillHole):
             raise RuntimeError("Error in Pin.from_cad_file(): failed to match pin_pattern to line:\n\t" + pin_line.v)
 
         pin_desc, pad_name, x_offset, y_offset, layer, _, _ = match.groups()
-        x_offset = in2mm(float(x_offset))
-        y_offset = in2mm(float(y_offset))
+        location_mm = Point(in2mm(float(x_offset)), in2mm(float(y_offset)))
 
         parent = None
-        pin = cls(parent, pin_desc, pad_name, x_offset, y_offset, layer)
+        pin = cls(parent, pin_desc, pad_name, location_mm, layer)
         return [pin], ret_lines

@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 from FileIO.Line import Line as FLine
 from Geometry.LineSegment import LineSegment
+from Geometry.Point import Point
 
 if TYPE_CHECKING:
     from Trace.SingleTrace import _TraceLine
@@ -17,7 +18,7 @@ class Path:
 
     def __init__(self,
                  source_lines: list[FLine],
-                 xy_points: list[tuple[float, float]],
+                 xy_points: list[Point],
                  segments: list[tuple[int, int] | tuple[int, int, FLine]] | list[LineSegment]
     ):
         # import here to avoid an import cycle
@@ -25,14 +26,11 @@ class Path:
 
         # sanity check/normalize input
         assert isinstance(source_lines, list) and isinstance(source_lines[0], FLine)
-        new_xy_points = []
-        for xy_idx, xy in enumerate(xy_points):
-            txy = xy if isinstance(xy, tuple) else tuple(xy)
-            try:
-                x, y = txy
-            except:
-                raise ValueError(f"Error in {self.__class__.__name__}(): " + f"expected xy_points to be a list of 2 tuples, but value at xy_points[{xy_idx}]={xy}")
-            new_xy_points.append(txy)
+        new_xy_points: list[Point] = []
+        for xy_idx, point in enumerate(xy_points):
+            point = point if isinstance(point, Point) else Point(*point)
+            new_xy_points.append(point)
+        xy_points = new_xy_points
 
         self.source_lines = source_lines
 
@@ -52,7 +50,7 @@ class Path:
         self._xypntindicies_2_segments = self._build_segments(ordered_xy_points, new_segments_idxs)
     
     @property
-    def xy_points(self) -> list[tuple[float, float]]:
+    def xy_points(self) -> list[Point]:
         """
         Returns the list of XY points that define this path.
         """
@@ -69,13 +67,13 @@ class Path:
         """
         return [s[1] for s in self._xypntindicies_2_segments]
     
-    def segments_at_xypnt(self, pnt_or_pntidx: tuple[float, float] | int) -> list[LineSegment]:
+    def segments_at_xypnt(self, pnt_or_pntidx: Point | int) -> list[LineSegment]:
 
         """
         Returns a list of LineSegments that contain the given XY point.
 
         Args:
-            pnt_or_pntidx (tuple[float, float] | int): Either an XY coordinate or its index in self._xy_points.
+            pnt_or_pntidx (Point | int): Either an XY coordinate or its index in self._xy_points.
 
         Returns:
             list[LineSegment]: The segments that include the specified point.
@@ -95,7 +93,7 @@ class Path:
                 return s[0]
         assert False, f"Failed to locate segment {segment} in this path!"
 
-    def segment_xypnts(self, segment: LineSegment) -> tuple[tuple[float, float], tuple[float, float]]:
+    def segment_xypnts(self, segment: LineSegment) -> tuple[Point, Point]:
         """
         Returns the XY points of a given LineSegment.
 
@@ -103,7 +101,7 @@ class Path:
             segment (LineSegment): The LineSegment to find the endpoints for.
 
         Returns:
-            tuple[tuple[float, float], tuple[float, float]]: The two XY coordinates that make up the segment.
+            tuple[Point, Point]: The two XY coordinates that make up the segment.
         """
         xy1_idx, xy2_idx = self.segment_xypnts_indicies(segment)
         xy1, xy2 = self.xy_points[xy1_idx], self.xy_points[xy2_idx]
@@ -111,14 +109,14 @@ class Path:
         assert xy2 == segment.xy2
         return xy1, xy2
     
-    def insert_xypnt(self, new_xy_pnt: tuple[float, float], old_segment: LineSegment) -> tuple[LineSegment, LineSegment]:
+    def insert_xypnt(self, new_xy_pnt: Point, old_segment: LineSegment) -> tuple[LineSegment, LineSegment]:
         """ Inserts a new xy point between the two points given by old_segment.
 
         The old segment will be removed and two new segments made on either side of it.
 
         Parameters
         ----------
-        new_xy_pnt : tuple[float, float]
+        new_xy_pnt : Point
             The new point to be inserted into this path.
         old_segment : LineSegment
             The old segment to be split into two segments.
@@ -156,7 +154,7 @@ class Path:
 
         return prev_segment, next_segment
 
-    def remove_xypnt(self, xy_pnt: tuple[float, float]) -> tuple[list[LineSegment], list[LineSegment]]:
+    def remove_xypnt(self, xy_pnt: Point) -> tuple[list[LineSegment], list[LineSegment]]:
         """ Removes the given point from this instance.
 
         To do this, we remove the point and generate new segments,
@@ -166,7 +164,7 @@ class Path:
 
         Parameters
         ----------
-        xy_pnt : tuple[float, float]
+        xy_pnt : Point
             The point to be removed.
 
         Returns
@@ -235,14 +233,14 @@ class Path:
         return old_segments, new_segments
 
     @staticmethod
-    def _build_segment(xy_points: list[tuple[float, float]], segment: "_TraceLine") -> LineSegment:
+    def _build_segment(xy_points: list[Point], segment: "_TraceLine") -> LineSegment:
         """
         Builds a LineSegment from two XY points.
 
         Params
         ------
-        xy_points: list[tuple[float, float]]
-            List of x,y pairs.
+        xy_points: list[Point]
+            List of x,y points.
         segment: tuple[int, int]
             The indices of the start and end point indicies in xy_points.
 
@@ -251,14 +249,14 @@ class Path:
         segment: LineSegment
             A new LineSegment object.
         """
-        x1, y1 = xy_points[segment.xy1_idx]
-        x2, y2 = xy_points[segment.xy2_idx]
+        xy1 = xy_points[segment.xy1_idx]
+        xy2 = xy_points[segment.xy2_idx]
         source_line = segment.fline
-        return LineSegment((x1, y1), (x2, y2), source_line=source_line)
+        return LineSegment(xy1, xy2, source_line=source_line)
 
     @classmethod
     def _build_segments(cls,
-                        xy_points: list[tuple[float, float]], 
+                        xy_points: list[Point], 
                         segments: list[tuple[int, int] | tuple[int, int, FLine]] | list[LineSegment]
     ) -> list[tuple[tuple[int, int], LineSegment]]:
         """
@@ -266,8 +264,8 @@ class Path:
 
         Params
         ------
-        xy_points: list[tuple[float, float]]
-            List of x,y pairs.
+        xy_points: list[Point]
+            List of x,y points.
         segments: (list[tuple[int, int]] | list[LineSegment])
             A list of either LineSegments or xy point pairs.
         
@@ -288,11 +286,11 @@ class Path:
         return xypntindicies_2_segments
 
     @staticmethod
-    def _get_xy_points_in_segment_order(segments: list[LineSegment]) -> list[tuple[float, float]]:
+    def _get_xy_points_in_segment_order(segments: list[LineSegment]) -> list[Point]:
         """
         Returns
         -------
-        ordered_xy_points: list[tuple[float, float]]
+        ordered_xy_points: list[Point]
             The x,y point pairs in the given segments, reordered to be in the order found in the segments.
         """
         ordered_xy_points = []

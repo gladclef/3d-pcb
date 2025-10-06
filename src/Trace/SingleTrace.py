@@ -10,8 +10,10 @@ import vtk
 
 from Component.Component import Component
 from Component.Pin import Pin
+from Component.Via import Via
 from FileIO.CadFileHelper import CadFileHelper
 from FileIO.Line import Line as FLine
+from Geometry.Point import Point
 import Geometry.geometry_tools as geo
 from Geometry.Line import Line
 from Geometry.LineSegment import LineSegment
@@ -77,7 +79,7 @@ class SingleTrace(AbstractTrace):
     def __init__(self,
                  source_lines: list[FLine],
                  layer: str,
-                 xy_points: list[tuple[float, float]],
+                 xy_points: list[Point],
                  segments: list[tuple[int, int] | tuple[int, int, FLine]] | list[LineSegment],
                  shape: PipeShape=None,
                  bend_radius: float=1,
@@ -87,7 +89,11 @@ class SingleTrace(AbstractTrace):
 
         Parameters
         ----------
-        xy_points : list[tuple[float, float]]
+        source_lines : list[FLine]
+            The lines that were parsed in order to create this instance.
+        layer : str
+            The name of the layer that this instance came from (eg TOP, BOTTOM).
+        xy_points : list[Point]
             List of XY coordinates defining the trace points.
         segments : Union[list[tuple[int, int]], list[LineSegment]]
             List of line segments. Each segment can be defined as either
@@ -113,9 +119,9 @@ class SingleTrace(AbstractTrace):
 
         self.layer = layer
         """ Which layer of the board this trace is on """
-        self._xypnt_vtk_verticies: dict[tuple[float, float], VtkPointGroup] = {}
+        self._xypnt_vtk_verticies: dict[Point, VtkPointGroup] = {}
         """ Dictionary from xy point index to vtk points. """
-        self.xypnt_trace_corners: dict[tuple[float, float], TraceCorner] = {}
+        self.xypnt_trace_corners: dict[Point, TraceCorner] = {}
         """ Dictionary from xy point index to trace corners. """
         self.bend_radius = bend_radius
         """
@@ -171,7 +177,7 @@ class SingleTrace(AbstractTrace):
                 if intersection is not None:
                     raise ValueError(f"Error in SingleTrace.check_segments_overlap(): segments {s1idx} ({segment1}) and {s2idx} ({segment2}) overlap at [{intersection}].")
 
-    def get_trace_corner(self, xy_pnt: tuple[float, float], segment_idx: int, segment: LineSegment) -> TraceCorner | None:
+    def get_trace_corner(self, xy_pnt: Point, segment_idx: int, segment: LineSegment) -> TraceCorner | None:
         """
         Get the trace corner for the given xy point.
         Builds the trace corner as necessary.
@@ -181,7 +187,7 @@ class SingleTrace(AbstractTrace):
 
         Parameters
         ----------
-        xy_pnt : tuple[float, float]
+        xy_pnt : Point
             The xy point (probably from self.xy_points).
         segment_idx : int
             The index of the segment (probably from self.segments).
@@ -210,13 +216,13 @@ class SingleTrace(AbstractTrace):
 
         return self.xypnt_trace_corners[xy_pnt]
 
-    def get_xypnt_vtk_verticies(self, xy_pnt: tuple[float, float], segment_idx: int, segment: LineSegment) -> VtkPointGroup:
+    def get_xypnt_vtk_verticies(self, xy_pnt: Point, segment_idx: int, segment: LineSegment) -> VtkPointGroup:
         """
         Get the vertices for the given end-point of a trace segment.
 
         Parameters
         ----------
-        xy_pnt : tuple[float, float]
+        xy_pnt : Point
             The xy point (probably from self.xy_points).
         segment_idx : int
             The index of the segment (probably from self.segments).
@@ -340,12 +346,12 @@ class SingleTrace(AbstractTrace):
         for segment_points in self._xypnt_vtk_verticies.values():
             segment_points.inc_vtk_indicies(start, cnt)
 
-    def remove_xypnt(self, xy_pnt: tuple[float, float]) -> tuple[tuple[list[LineSegment], TraceCorner], list[LineSegment]]:
+    def remove_xypnt(self, xy_pnt: Point) -> tuple[tuple[list[LineSegment], TraceCorner], list[LineSegment]]:
         """ Removes the given xy_pnt.
 
         Parameters
         ----------
-        xy_pnt : tuple[float, float]
+        xy_pnt : Point
             The point to be removed.
 
         Returns
@@ -498,7 +504,7 @@ class SingleTrace(AbstractTrace):
         Returns
         -------
         tuple[Union["SingleTrace",None], list[FLine]]
-            A tuple containing a SingleTrace instance (if found) and remaining lines from the CAD file.
+            A tuple containing zero or more SingleTrace instances and the remaining lines from the CAD file.
         """
         global ALLOW_MULTIPLE_TRACES_PER_ROUTE
         
@@ -517,20 +523,20 @@ class SingleTrace(AbstractTrace):
 
         # parse the lines for this route+layer
         segment_lines = list(filter(lambda l: l.v.startswith("LINE "), trace))
-        xy_points_orig: list[tuple[float, float]] = []
+        xy_points_orig: list[Point] = []
         edges: list[_TraceLine] = []
         for segment_line in segment_lines:
 
             x1, y1, x2, y2 = tuple(map(float, segment_line.v.strip()[5:].split(" ")))
-            xy1, xy2 = (x1, y1), (x2, y2)
-            if xy1 not in xy_points_orig:
-                xy_points_orig.append(xy1)
-            if xy2 not in xy_points_orig:
-                xy_points_orig.append(xy2)
+            point1, point2 = Point(x1, y1), Point(x2, y2)
+            if point1 not in xy_points_orig:
+                xy_points_orig.append(point1)
+            if point2 not in xy_points_orig:
+                xy_points_orig.append(point2)
 
-            xy1_idx, xy2_idx = xy_points_orig.index(xy1), xy_points_orig.index(xy2)
-            edges.append(_TraceLine(segment_line, xy1_idx, xy2_idx))
-        xy_points: list[tuple[float, float]] = [(in2mm(x), in2mm(y)) for x, y in xy_points_orig]
+            point1_idx, point2_idx = xy_points_orig.index(point1), xy_points_orig.index(point2)
+            edges.append(_TraceLine(segment_line, point1_idx, point2_idx))
+        xy_points: list[Point] = [Point(in2mm(p.x), in2mm(p.y)) for p in xy_points_orig]
 
         if len(edges) == 1:
             edge_groups = [edges]

@@ -9,6 +9,7 @@ from Component.Shape import Shape
 from Component.Text import Text
 from FileIO.CadFileHelper import CadFileHelper
 from FileIO.Line import Line as FLine
+from Geometry.Point import Point
 from tool.units import *
 
 class Component:
@@ -19,7 +20,7 @@ class Component:
     def __init__(self,
                  name: str,
                  device_name: str,
-                 translation: tuple[float, float],
+                 translation: Point,
                  layer: str,
                  rotation: float,
                  shape_name: str,
@@ -32,8 +33,8 @@ class Component:
             The name of the component.
         device_name : str
             The device name associated with the component.
-        translation : tuple[float, float]
-            The placement coordinates as (x, y).
+        translation : Point
+            The placement coordinates.
         layer : str
             The layer on which this component is placed.
         rotation : float
@@ -50,7 +51,7 @@ class Component:
         self.device_name = device_name
         """ The device name associated with the component. """
         self.translation = translation
-        """ The placement coordinates as (x, y). """
+        """ The placement coordinates. """
         self.layer = layer
         """ The layer on which this component is placed. """
         self.rotation = rotation
@@ -138,7 +139,7 @@ class Component:
 
         component_name: str = None
         device_name: str = None
-        place: tuple[float, float] = None
+        place: Point = None
         layer: str = None
         rotation: float = None
         shape_name: str = None
@@ -152,7 +153,7 @@ class Component:
                 device_name = line.v.split('"', 1)[1].rstrip().rstrip('"')
             elif line.v.startswith("PLACE"):
                 place_coords = re.findall(r"[-\d\.]+", line.v)
-                place = in2mm(float(place_coords[0])), in2mm(float(place_coords[1]))
+                place = Point(in2mm(float(place_coords[0])), in2mm(float(place_coords[1])))
             elif line.v.startswith("LAYER"):
                 layer = line.v.split(maxsplit=1)[1].strip()
             elif line.v.startswith("ROTATION"):

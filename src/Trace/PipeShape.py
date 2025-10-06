@@ -6,12 +6,13 @@ from scipy.spatial.transform import Rotation
 import vtk
 from vtk.util import numpy_support # type: ignore
 
+from Geometry.Point import Pointz
 from tool.globals import board_parameters as g
 from tool.units import *
 import tool.vtk_tools as vt
 
 class PipeShape:
-    def __init__(self, xz_pointz: list[list[float]], symetric_about_x=False, symetric_about_z=True):        
+    def __init__(self, xz_pointz: list[Pointz], symetric_about_x=False, symetric_about_z=True):        
         self.symetric_about_x = symetric_about_x
         self.symetric_about_z = symetric_about_z
         self._xz_pointz = xz_pointz
@@ -28,41 +29,41 @@ class PipeShape:
     def radius(self) -> float:
         return self.diameter / 2
 
-    def normalize_points(self) -> list[tuple[float, float]]:
+    def normalize_points(self) -> list[Pointz]:
         """ Returns the actual xz points of the shape, with properties applied. """
         ret = copy.deepcopy(self._xz_pointz)
 
         # add new points, reflected about the x axis
         if self.symetric_about_x:
-            new_points: list[tuple[float, float]] = []
+            new_points: list[Pointz] = []
             for pnt in reversed(ret):
-                pnt = (pnt[0], -pnt[1])
+                pnt = Pointz(pnt[0], -pnt[1])
                 new_points.append(pnt)
             ret += new_points
             
         # add new points, reflected about the z axis
         if self.symetric_about_z:
-            new_points: list[tuple[float, float]] = []
+            new_points: list[Pointz] = []
             for pnt in reversed(ret):
-                pnt = (-pnt[0], pnt[1])
+                pnt = Pointz(-pnt[0], pnt[1])
                 new_points.append(pnt)
             ret += new_points
 
         # Adjust the points so that the highest point is at z=0
-        z_max = np.max([z for x, z in ret])
-        ret = [(x, z-z_max) for x, z in ret]
+        z_max = np.max([p.z for p in ret])
+        ret = [Pointz(p.x, p.z-z_max) for p in ret]
         
-        z_max = np.max([z for x, z in ret])
+        z_max = np.max([p.z for p in ret])
         assert z_max == 0
 
         # Adjust the points so that the shape is centered around x=0
-        x_min = np.min([x for x, z in ret])
-        x_max = np.max([x for x, z in ret])
+        x_min = np.min([p.x for p in ret])
+        x_max = np.max([p.x for p in ret])
         x_offset = x_min + ((x_max - x_min) / 2)
-        ret = [(x-x_offset, z) for x, z in ret]
+        ret = [Pointz(p.x-x_offset, p.z) for p in ret]
         
-        x_min = np.min([x for x, z in ret])
-        x_max = np.max([x for x, z in ret])
+        x_min = np.min([p.x for p in ret])
+        x_max = np.max([p.x for p in ret])
         assert -x_min == x_max
 
         # # Reorder the points so that they are in polar angle order,
@@ -233,7 +234,7 @@ class PipeBasicCircle(PipeShape):
             The maximum width of the circular structure, by default BREADBOARD_SPACING-NOZZLE_DIAMETER.
         """
         wire_radius = wire_diameter / 2
-        xz_pointz: list[list[float]] = []
+        xz_pointz: list[Pointz] = []
 
         # assign default values
         max_radius = max_radius if max_radius is not None else g.BREADBOARD_SPACING - g.NOZZLE_DIAMETER
@@ -246,10 +247,10 @@ class PipeBasicCircle(PipeShape):
         # opening
         opening_intersection_angle = np.arccos(opening_radius/2)
         opening_intersection_z = np.sin(opening_intersection_angle)*radius + center[1]
-        xz_pointz.append([-opening_radius/2, opening_intersection_z])
-        xz_pointz.append([-opening_radius/2, 0])
-        xz_pointz.append([opening_radius/2, 0])
-        xz_pointz.append([opening_radius/2, opening_intersection_z])
+        xz_pointz.append(Pointz(-opening_radius/2, opening_intersection_z))
+        xz_pointz.append(Pointz(-opening_radius/2, 0))
+        xz_pointz.append(Pointz(opening_radius/2, 0))
+        xz_pointz.append(Pointz(opening_radius/2, opening_intersection_z))
 
         # generate a circle for the trace
         resolution = g.CIRCLE_RESOLUTION
@@ -262,7 +263,7 @@ class PipeBasicCircle(PipeShape):
                 if abs(x) <= abs(opening_radius):
                     continue
 
-            xz_pointz.append([x, z])
+            xz_pointz.append(Pointz(x, z))
 
         super().__init__(xz_pointz, symetric_about_x=False, symetric_about_z=False)
     

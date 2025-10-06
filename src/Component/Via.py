@@ -8,6 +8,7 @@ from scipy.spatial.transform import Rotation
 import vtk
 
 from Component.DrillHole import DrillHole
+from Geometry.Point import Point
 from tool.units import *
 import Geometry.geometry_tools as geo
 from Trace.VtkPointGroup import VtkPointGroup
@@ -17,27 +18,25 @@ import tool.vtk_tools as vt
 class Via(DrillHole):
     """Represents a single via for a trace."""
 
-    def __init__(self, x_offset: float, y_offset: float):
+    def __init__(self, location: Point):
         """
         Initialize the Via instance.
 
         Parameters
         ----------
-        x_offset : float
-            The x offset of the via from the board origin.
-        y_offset : float
-            The y offset of the via from the board origin.
+        location : Point
+            The location of the via relative to the board origin.
 
         """
-        super().__init__(x_offset, y_offset, is_via=True)
+        super().__init__(location, is_via=True)
 
-    def apply_translation_rotation_layer(self, translation: tuple[float, float], rotation: float, is_bottom: bool) -> "Via":
+    def apply_translation_rotation_layer(self, translation: tuple[float, float] | Point, rotation: float, is_bottom: bool) -> "Via":
         """
         Apply translation and rotation to the via, with optional flipping.
 
         Parameters
         ----------
-        translation : tuple[float, float]
+        translation : tuple[float, float] | Point
             Translation vector (x, y).
         rotation : float
             Rotation angle in radians.

@@ -7,13 +7,14 @@ import numpy as np
 
 from FileIO.Line import Line as FLine
 from Geometry.LineSegment import LineSegment
+from Geometry.Point import Point
 from tool.units import *
 import Geometry.geometry_tools as geo
 
 class Arc:
     """ Represents an arc used in the outline of a component shape. """
 
-    def __init__(self, start_point: tuple[float, float], end_point: tuple[float, float], center_point: tuple[float, float]):
+    def __init__(self, start_point: Point, end_point: Point, center_point: Point):
         self.start_point = start_point
         self.end_point = end_point
         self.center_point = center_point
@@ -32,13 +33,13 @@ class Arc:
         seg = LineSegment(self.center_point, self.end_point)
         return seg.angle
 
-    def apply_translation_rotation_layer(self, translation: tuple[float, float], rotation: float, is_bottom: bool) -> "Arc":
+    def apply_translation_rotation_layer(self, translation: Point, rotation: float, is_bottom: bool) -> "Arc":
         """
         Apply translation and rotation to the arc, with optional flipping.
 
         Parameters
         ----------
-        translation : tuple[float, float]
+        translation : Point
             Translation vector (x, y).
         rotation : float
             Rotation angle in radians.
@@ -100,11 +101,11 @@ class Arc:
             raise RuntimeError("Error in Arc.from_cad_file(): failed to match arc_pattern to line:\n\t" + arc_line.v)
 
         start_x, start_y, end_x, end_y, center_x, center_y = match.groups()
-        start_x, start_y = in2mm(float(start_x)), in2mm(float(start_y))
-        end_x, end_y = in2mm(float(end_x)), in2mm(float(end_y))
-        center_x, center_y = in2mm(float(center_x)), in2mm(float(center_y))
+        start = Point(in2mm(float(start_x)), in2mm(float(start_y)))
+        end = Point(in2mm(float(end_x)), in2mm(float(end_y)))
+        center = Point(in2mm(float(center_x)), in2mm(float(center_y)))
 
-        arc = cls((start_x, start_y), (end_x, end_y), (center_x, center_y))
+        arc = cls(start, end, center)
         return [arc], ret_lines
 
     def draw(self, ax: maxis.Axis):

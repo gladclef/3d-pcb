@@ -4,6 +4,7 @@ import vtk
 
 from Geometry.Line import Line
 from Geometry.Path import Path
+from Geometry.Point import Point
 import Geometry.geometry_tools as geo
 from Geometry.LineSegment import LineSegment
 from tool.globals import board_parameters as g
@@ -78,7 +79,7 @@ class PathCorner:
             return tangent.distance_along_line(self.bend_radius, seg1.xy2)
 
         # 2. get the bend radius distance points away from each line
-        def distance_along_tangent(line: Line, from_point: tuple[float, float]) -> tuple[tuple[float, float], tuple[float, float]]:
+        def distance_along_tangent(line: Line, from_point: Point) -> tuple[Point, Point]:
             tangent = line.get_tangent_line(from_point)
             if self.debug:
                 line_slope_intercept = line.slope, line.y_intercept
@@ -96,8 +97,8 @@ class PathCorner:
 
         # 3. choose the point for each line that is in the same direction as the other line
         def get_point_on_same_side(line: Line,
-                                   ref_point: tuple[float, float],
-                                   two_points: tuple[tuple[float, float], tuple[float, float]]) -> tuple[float, float]:
+                                   ref_point: Point,
+                                   two_points: tuple[Point, Point]) -> Point:
             if line.is_point_on_right(two_points[0]):
                 if line.is_point_on_right(ref_point):
                     return two_points[0]
@@ -126,7 +127,7 @@ class PathCorner:
 
         return adj_lines_intersection
 
-    def get_arc_properties(self) -> tuple[float, float, float, tuple[float, float]]:
+    def get_arc_properties(self) -> tuple[float, float, float, Point]:
         """ Get common properties about the arc that this path corner follows.
 
         Returns
@@ -141,7 +142,7 @@ class PathCorner:
             The total length of the arc. Note that this is the length for a perfect
             arc. The actual length will be different due to the path corner being
             composed of multiple increments.
-        arc_center: tuple[float, float]
+        arc_center: Point
             The x,y point at the center of the circle that the arc is a part of.
         """
 
@@ -170,7 +171,7 @@ class PathCorner:
         return angle_diff, mid_angle, arc_length, arc_center
 
     @cache
-    def get_center_line_points(self):
+    def get_center_line_points(self) -> list[tuple[Point, float]]:
         """
         Get the points that define the path for the path corner.
 
@@ -185,7 +186,7 @@ class PathCorner:
 
         Returns
         -------
-        xypoint_angle_pairs: list[tuple[tuple[float, float], float]]
+        xypoint_angle_pairs: list[tuple[Point, float]]
             Pairs of (xy, θ), one per point on the center line.
         """
         corner_increment_angle = np.deg2rad(5)
@@ -217,11 +218,11 @@ class PathCorner:
         # Build out the list of increments.
         first_angle = self.segments[0].angle
         inc_angle = angle_diff / nincrements
-        ret: list[tuple[tuple[float, float], float]] = []
+        ret: list[tuple[Point, float]] = []
         for i in range(nincrements+1):
             tan_angle = first_tan_angle + i*inc_angle
-            pnt_xy = np.cos(tan_angle)*self.bend_radius, np.sin(tan_angle)*self.bend_radius
-            pnt_xy = pnt_xy[0] + arc_center[0], pnt_xy[1] + arc_center[1]
+            pnt_xy = Point(np.cos(tan_angle)*self.bend_radius, np.sin(tan_angle)*self.bend_radius)
+            pnt_xy += arc_center
             pnt_angle = first_angle + i*inc_angle
             ret.append((pnt_xy, pnt_angle))
         

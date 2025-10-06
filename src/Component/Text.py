@@ -5,6 +5,7 @@ import matplotlib.axis as maxis
 import numpy as np
 
 from FileIO.Line import Line as FLine
+from Geometry.Point import Point
 import Geometry.geometry_tools as geo
 from tool.units import *
 
@@ -13,22 +14,20 @@ class Text:
     def __init__(self,
                  value: str,
                  font_size: float,
-                 x_offset: float,
-                 y_offset: float,
+                 location: Point,
                  width: float,
                  height: float,
                  rotation: float,
                  layer: str):
         self.value = value
         self.font_size = font_size
-        self.x_offset = x_offset
-        self.y_offset = y_offset
+        self.location = location
         self.width = width
         self.height = height
         self.rotation = rotation
         self.layer = layer
     
-    def apply_translation_rotation_layer(self, translation: tuple[float, float], rotation: float, is_bottom: bool) -> "Text":
+    def apply_translation_rotation_layer(self, translation: tuple[float, float] | Point, rotation: float, is_bottom: bool) -> "Text":
         """
         Apply translation and rotation to the text, with optional flipping.
 
@@ -47,10 +46,10 @@ class Text:
             A new Text instance with the applied transformations.
 
         """
-        x, y = geo.apply_translation_rotation_flip((self.x_offset, self.y_offset), translation, rotation, is_bottom)
+        x, y = geo.apply_translation_rotation_flip(self.location, translation, rotation, is_bottom)
 
         ret = copy.deepcopy(self)
-        ret.x_offset, ret.y_offset = x, y
+        ret.location = Point(x, y)
         # ret.rotation += rotation
 
         return ret
@@ -76,13 +75,12 @@ class Text:
         if match is None:
             raise RuntimeError("Error in Text.from_cad_file(): failed to match text_pattern to line:\n\t" + text_line.v)
         x_offset, y_offset, font_size, rotation, _, layer, value, _, _, width, height = match.groups()
-        x_offset_mm = in2mm(float(x_offset))
-        y_offset_mm = in2mm(float(y_offset))
+        location_mm = Point(in2mm(float(x_offset)), in2mm(float(y_offset)))
         rotation_rad = geo.normalize_angle(np.deg2rad(float(rotation)))
         width_mm = in2mm(float(width))
         height_mm = in2mm(float(height))
 
-        text = Text(value, font_size, x_offset_mm, y_offset_mm, width_mm, height_mm, rotation_rad, layer)
+        text = Text(value, font_size, location_mm, width_mm, height_mm, rotation_rad, layer)
         return [text], ret_lines
 
     def draw(self, ax: maxis.Axis):

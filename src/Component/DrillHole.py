@@ -8,6 +8,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 import vtk
 
+from Geometry.Point import Point
 from tool.units import *
 import Geometry.geometry_tools as geo
 from Trace.VtkPointGroup import VtkPointGroup
@@ -17,24 +18,20 @@ import tool.vtk_tools as vt
 class DrillHole(ABC):
     """ Represents a drill hole in a circuit board. """
 
-    def __init__(self, x_offset: float, y_offset: float, is_via=False, is_through_hole=False, diameter: float=None):
+    def __init__(self, location: Point, is_via=False, is_through_hole=False, diameter: float=None):
         """
         Initialize the DrillHole instance.
 
         Parameters
         ----------
-        x_offset : float
-            The x offset of the instance from the parent's origin.
-        y_offset : float
-            The y offset of the instance from the parent's origin.
+        location : Point
+            The location of the instance relative to parent's origin.
         diameter : float
             The diameter used for manually specified drill holes.
 
         """
-        self.x_offset = x_offset
-        """ The x offset of the instance from the parent's origin. """
-        self.y_offset = y_offset
-        """ The y offset of the instance from the parent's origin. """
+        self.location = location
+        """ The location of the instance relative to parent's origin. """
         self.is_via = is_via
         self.is_through_hole = is_through_hole
 
@@ -58,13 +55,13 @@ class DrillHole(ABC):
     def through_hole_diameter() -> float:
         return g.THROUGH_HOLE_DIAMETER + g.THROUGH_HOLE_DIAMETER_CLEARANCE
 
-    def apply_translation_rotation_layer(self, translation: tuple[float, float], rotation: float, is_bottom: bool):
+    def apply_translation_rotation_layer(self, translation: tuple[float, float] | Point, rotation: float, is_bottom: bool):
         """
         Apply translation and rotation directly to this drill hole, with optional flipping.
 
         Parameters
         ----------
-        translation : tuple[float, float]
+        translation : tuple[float, float] | Point
             Translation vector (x, y).
         rotation : float
             Rotation angle in radians.

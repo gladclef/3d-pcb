@@ -1,17 +1,16 @@
 import numpy as np
 
+from Geometry.Point import Point
 import Geometry.geometry_tools as geo
 
 
 class Line:
-    def __init__(self, x: float, y: float, y_intercept: float=None, x_intercept: float=None):
+    def __init__(self, xy: Point, y_intercept: float=None, x_intercept: float=None):
         """
         Parameters
         ----------
-        x : float
-            The x component of the line slope.
-        y : float
-            The y component of the line slope.
+        xy : Point
+            The x and y components of the line slope.
         y_intercept : float, optional
             Where the line crosses the y axis, by default 0
         x_intercept : float, optional
@@ -19,7 +18,7 @@ class Line:
             Only necessary when the line is vertical.
         """
         # get default values
-        slope = self.xy_to_slope(x, y)
+        slope = self.xy_to_slope(xy.x, xy.y)
         if slope == 0:
             # x intercept is undefined
             y_intercept = y_intercept if y_intercept is not None else 0
@@ -44,8 +43,7 @@ class Line:
                     x_intercept = 0
                     y_intercept = 0
 
-        self.x = x
-        self.y = y
+        self.xy = xy
         self.y_intercept = y_intercept
         self.x_intercept = x_intercept
 
@@ -86,24 +84,23 @@ class Line:
             return cls(10, slope*10, y_intercept)
     
     @classmethod
-    def from_angle_point(cls, angle: float, point: tuple[float, float]) -> "Line":
+    def from_angle_point(cls, angle: float, point: Point) -> "Line":
         angle = geo.normalize_angle(angle)
-        x, y = point
 
         # check for vertical or horizontal lines
         if abs(np.sin(angle)*geo.INF_THRESH) >= geo.INF_THRESH-1:
-            return Line(np.cos(angle), np.sin(angle), x_intercept=x)
+            return Line(Point(np.cos(angle), np.sin(angle)), x_intercept=point.x)
         elif abs(np.cos(angle)*geo.INF_THRESH) >= geo.INF_THRESH-1:
-            return Line(np.cos(angle), np.sin(angle), y_intercept=y)
+            return Line(Point(np.cos(angle), np.sin(angle)), y_intercept=point.y)
         
         slope = np.sin(angle) / np.cos(angle)
-        y_intercept = y - slope*x
-        return Line(np.cos(angle), np.sin(angle), y_intercept=y_intercept)
+        y_intercept = point.y - slope*point.x
+        return Line(Point(np.cos(angle), np.sin(angle)), y_intercept=y_intercept)
     
     @classmethod
-    def from_two_points(cls, pnt1: tuple[float, float], pnt2: tuple[float, float]) -> "Line":
-        x, y = pnt2[0] - pnt1[0], pnt2[1] - pnt1[1]
-        angle = np.atan2(y, x)
+    def from_two_points(cls, pnt1: Point, pnt2: Point) -> "Line":
+        diff = pnt2 - pnt1
+        angle = np.atan2(diff.y, diff.x)
         return cls.from_angle_point(angle, pnt1)
 
     @property
@@ -166,12 +163,12 @@ class Line:
         return self.slope*self.x2 + self.y_intercept
     
     @property
-    def xy1(self) -> tuple[float, float]:
-        return self.x1, self.y1
+    def xy1(self) -> Point:
+        return Point(self.x1, self.y1)
     
     @property
-    def xy2(self) -> tuple[float, float]:
-        return self.x2, self.y2
+    def xy2(self) -> Point:
+        return Point(self.x2, self.y2)
     
     @property
     def angle(self) -> float:
@@ -200,14 +197,14 @@ class Line:
         """ Returns the slope (rise / run) for the given angle. """
         return np.sin(angle) / np.cos(angle)
 
-    def is_point_on_right(self, test_point: tuple[float, float]) -> bool:
+    def is_point_on_right(self, test_point: Point) -> bool:
         if self.is_vertical:
-            a, b = (self.x_intercept, 0), (self.x+self.x_intercept, self.y)
+            a, b = Point(self.x_intercept, 0), Point(self.x+self.x_intercept, self.y)
         elif self.is_horizontal or True:
-            a, b = (0, self.y_intercept), (self.x, self.y+self.y_intercept)
+            a, b = Point(0, self.y_intercept), Point(self.x, self.y+self.y_intercept)
         c = test_point
 
-        is_on_left = (b[0] - a[0])*(c[1] - a[1]) - (b[1] - a[1])*(c[0] - a[0]) > 0
+        is_on_left = (b.x - a.x)*(c.y - a.y) - (b.y - a.y)*(c.x - a.x) > 0
         return not is_on_left
 
     def is_parallel_to(self, other: "Line") -> bool:
@@ -216,12 +213,12 @@ class Line:
             return True
         return False
 
-    def intersection(self, other: "Line") -> tuple[float, float] | None:
+    def intersection(self, other: "Line") -> Point | None:
         """ Get the intersection point of two lines.
         
         Returns
         -------
-        tuple[float, float]
+        Point
             The x,y intersection point, or None if the lines are parallel
         """
         # Don't check for intersection between two lines that are parallel
@@ -256,9 +253,9 @@ class Line:
             x = (y_int_b - y_int_a) / (slope_a - slope_b)
             y = slope_a*x + y_int_a
 
-        return x, y
+        return Point(x, y)
 
-    def distance_along_line(self, distance: float, from_point: tuple[float, float] = None) -> tuple[float, float]:
+    def distance_along_line(self, distance: float, from_point: Point = None) -> Point:
         """
         Get a point along the line that is a distance away from the given from_point.
 
@@ -266,11 +263,11 @@ class Line:
         ----------
         distance : float
             The distance along the line.
-        from_point : tuple[float, float] | None
+        from_point : Point | None
             A point along the reference line to find the distant points at,
             or None to just use (0, y-intercept) as the from_point.
         """
-        from_x, from_y = from_point if from_point is not None else (None, None)
+        from_x, from_y = (from_point.x, from_point.y) if (from_point is not None) else (None, None)
 
         # Check for an infinite or 0 slope.
         if self.is_vertical:
@@ -313,14 +310,14 @@ class Line:
         dx = from_x + x
         dy = self.slope*x + from_y
         
-        return (dx, dy)
+        return Point(dx, dy)
 
-    def get_tangent_line(self, from_point: tuple[float, float]) -> "Line":
+    def get_tangent_line(self, from_point: Point) -> "Line":
         """ Get the tangent line to the given reference_line.
 
         Parameters
         ----------
-        from_point: tuple[float, float]
+        from_point: Point
             The x,y point along the reference line that the
             tangent line should start at.
         """
@@ -328,7 +325,6 @@ class Line:
         # Set some defaults.
         if from_point is None:
             from_point = (0, self.y_intercept)
-        from_x, from_y = from_point
 
         # Check for vertical or horizontal lines.
         if self.is_vertical:
@@ -346,7 +342,7 @@ class Line:
         tan_slope = -1 / self.slope
 
         # Get the tangent y-intercept
-        tan_y_intercept = -tan_slope*from_x + from_y
+        tan_y_intercept = -tan_slope*from_point.x + from_point.y
 
         return self.__class__.from_slope_intercept(tan_slope, tan_y_intercept)
     

@@ -4,6 +4,7 @@ import re
 import matplotlib.axis as maxis
 import numpy as np
 
+from Geometry.Point import Point
 from tool.units import *
 from FileIO.Line import Line as FLine
 import Geometry.geometry_tools as geo
@@ -11,17 +12,17 @@ import Geometry.geometry_tools as geo
 class Line:
     """ Represents a line used in the outline of a component shape. """
 
-    def __init__(self, xy1: tuple[float, float], xy2: tuple[float, float]):
+    def __init__(self, xy1: Point, xy2: Point):
         self.xy1 = xy1
         self.xy2 = xy2
 
-    def apply_translation_rotation_layer(self, translation: tuple[float, float], rotation: float, is_bottom: bool) -> "Line":
+    def apply_translation_rotation_layer(self, translation: Point, rotation: float, is_bottom: bool) -> "Line":
         """
         Apply translation and rotation to the line, with optional flipping.
 
         Parameters
         ----------
-        translation : tuple[float, float]
+        translation : Point
             Translation vector (x, y).
         rotation : float
             Rotation angle in radians.
@@ -35,6 +36,7 @@ class Line:
         """
         xy1 = geo.apply_translation_rotation_flip(self.xy1, translation, rotation, is_bottom)
         xy2 = geo.apply_translation_rotation_flip(self.xy2, translation, rotation, is_bottom)
+        xy1, xy2 = Point(*xy1), Point(*xy2)
 
         ret = copy.deepcopy(self)
         ret.xy1, ret.xy2 = xy1, xy2
