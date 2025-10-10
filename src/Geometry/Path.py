@@ -42,8 +42,8 @@ class Path:
         # build the list of segments a second time, now that the points can be ordered
         new_segments_idxs = []
         for s in new_segments:
-            idx1 = ordered_xy_points.index(s.xy1)
-            idx2 = ordered_xy_points.index(s.xy2)
+            idx1 = ordered_xy_points.index(s.xy0)
+            idx2 = ordered_xy_points.index(s.xy1)
             idx1, idx2 = tuple(sorted([idx1, idx2]))
             new_segments_idxs.append(_TraceLine(s.source_line, idx1, idx2))
         self._xy_points = ordered_xy_points
@@ -105,8 +105,8 @@ class Path:
         """
         xy1_idx, xy2_idx = self.segment_xypnts_indicies(segment)
         xy1, xy2 = self.xy_points[xy1_idx], self.xy_points[xy2_idx]
-        assert xy1 == segment.xy1
-        assert xy2 == segment.xy2
+        assert xy1 == segment.xy0
+        assert xy2 == segment.xy1
         return xy1, xy2
     
     def insert_xypnt(self, new_xy_pnt: Point, old_segment: LineSegment) -> tuple[LineSegment, LineSegment]:
@@ -136,14 +136,14 @@ class Path:
         self._xypntindicies_2_segments.remove(old_xypnts2seg)
 
         # insert the new point
-        prev_xy_pnt = old_segment.xy1
+        prev_xy_pnt = old_segment.xy0
         prev_xy_pnt_idx = self._xy_points.index(prev_xy_pnt)
         self._xy_points.insert(prev_xy_pnt_idx+1, new_xy_pnt)
 
         # create new segments
-        prev_segment = LineSegment(old_segment.xy1, new_xy_pnt, old_segment.source_line)
-        next_segment = LineSegment(new_xy_pnt, old_segment.xy2, old_segment.source_line)
-        xy1_idx, xy12_idx, xy2_idx = self.xy_points.index(prev_segment.xy1), self.xy_points.index(prev_segment.xy2), self.xy_points.index(next_segment.xy2)
+        prev_segment = LineSegment(old_segment.xy0, new_xy_pnt, old_segment.source_line)
+        next_segment = LineSegment(new_xy_pnt, old_segment.xy1, old_segment.source_line)
+        xy1_idx, xy12_idx, xy2_idx = self.xy_points.index(prev_segment.xy0), self.xy_points.index(prev_segment.xy1), self.xy_points.index(next_segment.xy1)
         assert xy1_idx >= 0
         assert xy12_idx >= 0
         assert xy2_idx >= 0
@@ -183,7 +183,7 @@ class Path:
         prev_segments: list[LineSegment] = []
         next_segments: list[LineSegment] = []
         for segment in old_segments:
-            if segment.xy1 == xy_pnt:
+            if segment.xy0 == xy_pnt:
                 next_segments.append(segment)
             else:
                 prev_segments.append(segment)
@@ -222,7 +222,7 @@ class Path:
         new_segments: list[LineSegment] = []
         prev_segment = prev_segments[0]
         for new_idx, next_segment in zip(reversed(new_xy2seg_indicies), reversed(next_segments)):
-            xy1, xy2 = prev_segment.xy1, next_segment.xy2
+            xy1, xy2 = prev_segment.xy0, next_segment.xy1
             new_segment = LineSegment(xy1, xy2, next_segment.source_line)
             new_segments.append(new_segment)
             xy1_idx, xy2_idx = self.xy_points.index(xy1), self._xy_points.index(xy2)
@@ -249,8 +249,8 @@ class Path:
         segment: LineSegment
             A new LineSegment object.
         """
-        xy1 = xy_points[segment.xy1_idx]
-        xy2 = xy_points[segment.xy2_idx]
+        xy1 = xy_points[segment.xy0_idx]
+        xy2 = xy_points[segment.xy1_idx]
         source_line = segment.fline
         return LineSegment(xy1, xy2, source_line=source_line)
 
@@ -280,7 +280,7 @@ class Path:
         for s in segments:
             if not isinstance(s, LineSegment):
                 s = cls._build_segment(xy_points, s)
-            k = (xy_points.index(s.xy1), xy_points.index(s.xy2))
+            k = (xy_points.index(s.xy0), xy_points.index(s.xy1))
             xypntindicies_2_segments.append((k, s))
         
         return xypntindicies_2_segments
@@ -297,17 +297,17 @@ class Path:
 
         if len(segments) == 1:
             # special case: only one segment
-            ordered_xy_points = [segments[0].xy1, segments[0].xy2]
+            ordered_xy_points = [segments[0].xy0, segments[0].xy1]
         
         else:
             prev_segment: LineSegment = None
             for segment_idx, segment in enumerate(segments):
                 if prev_segment is not None:
-                    if prev_segment.xy1 in [segment.xy1, segment.xy2]:
-                        xy_common, xy_other = prev_segment.xy1, prev_segment.xy2
+                    if prev_segment.xy0 in [segment.xy0, segment.xy1]:
+                        xy_common, xy_other = prev_segment.xy0, prev_segment.xy1
                     else:
-                        assert prev_segment.xy2 in [segment.xy1, segment.xy2]
-                        xy_common, xy_other = prev_segment.xy2, prev_segment.xy1
+                        assert prev_segment.xy1 in [segment.xy0, segment.xy1]
+                        xy_common, xy_other = prev_segment.xy1, prev_segment.xy0
 
                     if segment_idx == 1:
                         # special case, first segment
@@ -318,10 +318,10 @@ class Path:
                 prev_segment = segment
             
             # special case, last segment
-            if segment.xy1 == ordered_xy_points[-1]:
-                ordered_xy_points.append(segment.xy2)
-            else:
-                assert segment.xy2 == ordered_xy_points[-1]
+            if segment.xy0 == ordered_xy_points[-1]:
                 ordered_xy_points.append(segment.xy1)
+            else:
+                assert segment.xy1 == ordered_xy_points[-1]
+                ordered_xy_points.append(segment.xy0)
         
         return ordered_xy_points

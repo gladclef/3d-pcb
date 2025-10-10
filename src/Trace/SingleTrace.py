@@ -33,15 +33,15 @@ ALLOW_MULTIPLE_TRACES_PER_ROUTE = True
 @dataclasses.dataclass
 class _TraceLine:
     fline: FLine
+    xy0_idx: int
     xy1_idx: int
-    xy2_idx: int
     is_end: bool = False
     is_solo: bool = False
     is_inner_edge: bool = False
 
     @property
     def xy_idxs(self) -> tuple[int, int]:
-        return (self.xy1_idx, self.xy2_idx)
+        return (self.xy0_idx, self.xy1_idx)
 
     @classmethod
     def uncategorized(cls, trace_lines: list["_TraceLine"]) -> list["_TraceLine"]:
@@ -64,7 +64,7 @@ class _TraceLine:
         return list(filter(lambda tl: not tl.is_solo, trace_lines))
     
     def __repr__(self):
-        return f"<{self.xy1_idx}, {self.xy2_idx}, {self.fline}>"
+        return f"<{self.xy0_idx}, {self.xy1_idx}, {self.fline}>"
 
 
 class SingleTrace(AbstractTrace):
@@ -149,7 +149,7 @@ class SingleTrace(AbstractTrace):
         segments : list[LineSegment]
             List of line segments to be checked for duplicates.
         """
-        segment_tuples = [(s.xy1, s.xy2) for s in segments]
+        segment_tuples = [(s.xy0, s.xy1) for s in segments]
         segments_set = set(segment_tuples)
         if len(segment_tuples) != len(segments_set):
             linenos = [l.lineno for l in self.source_lines]
@@ -166,10 +166,10 @@ class SingleTrace(AbstractTrace):
                     # don't check for self-segment intersections
                     continue
 
-                if segment1.xy1.almost_equal(segment2.xy1) < 1e-4 or \
-                    segment1.xy1.almost_equal(segment2.xy2) < 1e-4 or \
-                    segment1.xy2.almost_equal(segment2.xy1) < 1e-4 or \
-                    segment1.xy2.almost_equal(segment2.xy2) < 1e-4:
+                if segment1.xy0.almost_equal(segment2.xy0) < 1e-4 or \
+                    segment1.xy0.almost_equal(segment2.xy1) < 1e-4 or \
+                    segment1.xy1.almost_equal(segment2.xy0) < 1e-4 or \
+                    segment1.xy1.almost_equal(segment2.xy1) < 1e-4:
                     # don't check for intersections with segments that share one of the end points
                     continue
 
@@ -206,15 +206,15 @@ class SingleTrace(AbstractTrace):
         TraceCorner | None
             The corner for the given xy point, or None.
         """
-        if segment_idx == 0 and xy_pnt == segment.xy1:
+        if segment_idx == 0 and xy_pnt == segment.xy0:
             return None
-        if segment_idx == len(self.segments)-1 and xy_pnt == segment.xy2:
+        if segment_idx == len(self.segments)-1 and xy_pnt == segment.xy1:
             return None
 
         if xy_pnt not in self.xypnt_trace_corners:
-            if xy_pnt.almost_equal(segment.xy2):
+            if xy_pnt.almost_equal(segment.xy1):
                 segment_a, segment_b = segment, self.segments[segment_idx+1]
-            elif xy_pnt.almost_equal(segment.xy1):
+            elif xy_pnt.almost_equal(segment.xy0):
                 segment_a, segment_b = self.segments[segment_idx-1], segment
             else:
                 raise RuntimeError("Error in SingleTrace.get_trace_corner(): " + "xy_pnt != segment.xy1 and xy_pnt != segment.xy2")
@@ -250,12 +250,12 @@ class SingleTrace(AbstractTrace):
                 self._xypnt_vtk_verticies[xy_pnt] = VtkPointGroup(xyz_points)
 
             else:
-                if segment.xy1.almost_equal(xy_pnt):
+                if segment.xy0.almost_equal(xy_pnt):
                     return corner.get_vtk_group(corner.n_points-1)
-                elif segment.xy2.almost_equal(xy_pnt):
+                elif segment.xy1.almost_equal(xy_pnt):
                     return corner.get_vtk_group(0)
                 else:
-                    raise RuntimeError("Error in SingleTrace.get_xypnt_vtk_verticies(): " + f"expected the xy_point to be at the beginning or end of the given segment, " + f"but {xy_pnt=} and {segment.xy1=} and {segment.xy2=}!")
+                    raise RuntimeError("Error in SingleTrace.get_xypnt_vtk_verticies(): " + f"expected the xy_point to be at the beginning or end of the given segment, " + f"but {xy_pnt=} and {segment.xy0=} and {segment.xy1=}!")
 
         return self._xypnt_vtk_verticies[xy_pnt]
 
@@ -270,7 +270,7 @@ class SingleTrace(AbstractTrace):
             List of components to search for closest through-hole pins.
         """
         # get the ends of the first and last segments
-        xy_locs = { "a": self.segments[0].xy1, "b": self.segments[-1].xy2 }
+        xy_locs = { "a": self.segments[0].xy0, "b": self.segments[-1].xy1 }
 
         # find the component through holes that most closely match this instance
         closest_pins: dict[str, Pin] = { "a": None, "b": None }
@@ -319,7 +319,7 @@ class SingleTrace(AbstractTrace):
             The Segment to insert.
         """
         # get core segment values
-        xy_a, xy_b = segment.xy1, segment.xy2
+        xy_a, xy_b = segment.xy0, segment.xy1
 
         # get the vertices at either end of the trace segment
         va = self.get_xypnt_vtk_verticies(xy_a, segment_idx, segment)
@@ -391,26 +391,26 @@ class SingleTrace(AbstractTrace):
                         print(f"Found short trace segment in lines {min(linenos)}-{max(linenos)}")
 
                         # replace this xy_pair with the intersection of the previous and next lines
-                        prev_segments = list(filter(lambda s: s != segment, self.segments_at_xypnt(segment.xy1)))
-                        next_segments = list(filter(lambda s: s != segment, self.segments_at_xypnt(segment.xy2)))
+                        prev_segments = list(filter(lambda s: s != segment, self.segments_at_xypnt(segment.xy0)))
+                        next_segments = list(filter(lambda s: s != segment, self.segments_at_xypnt(segment.xy1)))
                         if len(prev_segments) == 0:
                             # no previous line, replace with the next line
-                            self.remove_xypnt(segment.xy2)
+                            self.remove_xypnt(segment.xy1)
                         elif len(next_segments) == 0:
                             # no next line, replace with the previous line
-                            self.remove_xypnt(segment.xy1)
+                            self.remove_xypnt(segment.xy0)
                         else:
                             prev_segment = prev_segments[0]
                             new_segments: list[LineSegment] = []
                             for i, next_segment in enumerate(next_segments):
                                 # get the new point to insert
-                                prev_line = Line.from_two_points(prev_segment.xy1, prev_segment.xy2)
-                                next_line = Line.from_two_points(next_segment.xy1, next_segment.xy2)
+                                prev_line = Line.from_two_points(prev_segment.xy0, prev_segment.xy1)
+                                next_line = Line.from_two_points(next_segment.xy0, next_segment.xy1)
                                 new_xy_pnt = prev_line.intersection(next_line)
                                 
                                 # remove this segment
                                 if i == 0:
-                                    _, new_segments = self.remove_xypnt(segment.xy1)
+                                    _, new_segments = self.remove_xypnt(segment.xy0)
 
                                 # TODO fix this
                                 # # get the segment to be replaced
@@ -534,15 +534,15 @@ class SingleTrace(AbstractTrace):
         edges: list[_TraceLine] = []
         for segment_line in segment_lines:
 
-            x1, y1, x2, y2 = tuple(map(float, segment_line.v.strip()[5:].split(" ")))
-            point1, point2 = Point(x1, y1), Point(x2, y2)
+            x0, y0, x1, y1 = tuple(map(float, segment_line.v.strip()[5:].split(" ")))
+            point0, point1 = Point(x0, y0), Point(x1, y1)
+            if point0 not in xy_points_orig:
+                xy_points_orig.append(point0)
             if point1 not in xy_points_orig:
                 xy_points_orig.append(point1)
-            if point2 not in xy_points_orig:
-                xy_points_orig.append(point2)
 
-            point1_idx, point2_idx = xy_points_orig.index(point1), xy_points_orig.index(point2)
-            edges.append(_TraceLine(segment_line, point1_idx, point2_idx))
+            point0_idx, point1_idx = xy_points_orig.index(point0), xy_points_orig.index(point1)
+            edges.append(_TraceLine(segment_line, point0_idx, point1_idx))
         xy_points: list[Point] = [Point(in2mm(p.x), in2mm(p.y)) for p in xy_points_orig]
 
         # parse the vias for this route
@@ -596,26 +596,26 @@ class SingleTrace(AbstractTrace):
                         end_b: _TraceLine = None
 
                         # find the group inner edges
-                        group_xy_points = [end_a.xy1_idx, end_a.xy2_idx]
+                        group_xy_points = [end_a.xy0_idx, end_a.xy1_idx]
                         found_inner_edge = True
                         while found_inner_edge:
                             found_inner_edge = False
                             for edge in copy.copy(inner_edges):
-                                if (edge.xy1_idx in group_xy_points) or (edge.xy2_idx in group_xy_points):
+                                if (edge.xy0_idx in group_xy_points) or (edge.xy1_idx in group_xy_points):
                                     edge_group.append(edge)
+                                    group_xy_points.append(edge.xy0_idx)
                                     group_xy_points.append(edge.xy1_idx)
-                                    group_xy_points.append(edge.xy2_idx)
                                     inner_edges.remove(edge)
                                     found_inner_edge = True
                                     break
 
                         # find the other end
                         for edge in end_edges:
-                            if (edge.xy1_idx in group_xy_points) or (edge.xy2_idx in group_xy_points):
+                            if (edge.xy0_idx in group_xy_points) or (edge.xy1_idx in group_xy_points):
                                 assert end_b is None
                                 end_b = edge
+                                group_xy_points.append(edge.xy0_idx)
                                 group_xy_points.append(edge.xy1_idx)
-                                group_xy_points.append(edge.xy2_idx)
                         end_edges.remove(end_b)
                         edge_group.append(end_b)
 
@@ -646,7 +646,7 @@ class SingleTrace(AbstractTrace):
                 new_edge_group = [end_a]
                 while len(group_inner_edges) > 0:
                     for edge in copy.copy(group_inner_edges):
-                        if (edge.xy1_idx in new_edge_group[-1].xy_idxs) or (edge.xy2_idx in new_edge_group[-1].xy_idxs):
+                        if (edge.xy0_idx in new_edge_group[-1].xy_idxs) or (edge.xy1_idx in new_edge_group[-1].xy_idxs):
                             new_edge_group.append(edge)
                             group_inner_edges.remove(edge)
                             break
@@ -660,14 +660,14 @@ class SingleTrace(AbstractTrace):
 
                 for edge_idx, edge in enumerate(edge_group[:-1]):
                     next_edge = edge_group[edge_idx]
-                    if edge.xy1_idx in next_edge.xy_idxs:
-                        edge.xy1_idx, edge.xy2_idx = edge.xy2_idx, edge.xy1_idx
+                    if edge.xy0_idx in next_edge.xy_idxs:
+                        edge.xy0_idx, edge.xy1_idx = edge.xy1_idx, edge.xy0_idx
 
                 # orient the last edge
                 end_b = edge_group[-1]
                 prev_edge = edge_group[-2]
-                if end_b.xy2_idx in prev_edge.xy_idxs:
-                    end_b.xy1_idx, end_b.xy2_idx = end_b.xy2_idx, end_b.xy1_idx
+                if end_b.xy1_idx in prev_edge.xy_idxs:
+                    end_b.xy0_idx, end_b.xy1_idx = end_b.xy1_idx, end_b.xy0_idx
 
         # # debugging
         # for edge in edges:
@@ -699,11 +699,11 @@ class SingleTrace(AbstractTrace):
         # if we should be adding through-holes for the traces.
         if pins["a"] is not None:
             x, y = pins["a"].x_offset, pins["a"].y_offset
-            segments[0] = LineSegment((x, y), segments[0].xy2)
+            segments[0] = LineSegment((x, y), segments[0].xy1)
 
         if pins["b"] is not None:
             x, y = pins["b"].x_offset, pins["b"].y_offset
-            segments[-1] = LineSegment(segments[-1].xy1, (x, y))
+            segments[-1] = LineSegment(segments[-1].xy0, (x, y))
 
         return segments
 
@@ -752,8 +752,8 @@ class SingleTrace(AbstractTrace):
         segments = self._get_segments_with_through_holes()
 
         # build the list of xy points
-        xy_points = [s.xy1 for s in segments]
-        xy_points.append(segments[-1].xy2)
+        xy_points = [s.xy0 for s in segments]
+        xy_points.append(segments[-1].xy1)
 
         # build the segments verts and cells
         for segment_idx, segment in enumerate(segments):
@@ -761,7 +761,7 @@ class SingleTrace(AbstractTrace):
 
         # build the corners
         for xy_pnt in xy_points:
-            segment = list(filter(lambda s: xy_pnt in [s.xy1, s.xy2], segments))[0]
+            segment = list(filter(lambda s: xy_pnt in [s.xy0, s.xy1], segments))[0]
             segment_idx = segments.index(segment)
             corner = self.get_trace_corner(xy_pnt, segment_idx, segment)
             if corner is not None:
@@ -801,7 +801,7 @@ class SingleTrace(AbstractTrace):
                 pin.draw(ax)
 
         for seg in segments:
-            ax.arrow(seg.x1, seg.y1, seg.x2-seg.x1, seg.y2-seg.y1, color="teal", head_width=.3)
+            ax.arrow(seg.x0, seg.y0, seg.x1-seg.x0, seg.y1-seg.y0, color="teal", head_width=.3)
 
 
 def _tst_trace_from_points():

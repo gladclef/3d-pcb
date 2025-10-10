@@ -137,7 +137,7 @@ class TestLine(unittest.TestCase):
                 y2 = random.random()*100
             
             l1 = Line.from_two_points((x1, y1), (x2, y2))
-            l2 = Line.from_two_points((l1.x1, l1.y1), (l1.x2, l1.y2))
+            l2 = Line.from_two_points((l1.x0, l1.y0), (l1.x1, l1.y1))
 
             self.assertAlmostEqual(l1.angle, l2.angle, places=5)
             self.assertAlmostEqual(l1.y_intercept, l2.y_intercept, places=5)

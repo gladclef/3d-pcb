@@ -23,10 +23,10 @@ class PathCorner:
             How large of a radius the bend should be.
         """
         # verify that the segments share an end point, and that the shared point is in the middle
-        if segments[0].xy2 == segments[1].xy1:
-            if segments[0].xy1 == segments[1].xy2:
+        if segments[0].xy1 == segments[1].xy0:
+            if segments[0].xy0 == segments[1].xy1:
                 raise ValueError("The segments must share only one common end point.")
-        elif segments[0].xy1 == segments[1].xy2:
+        elif segments[0].xy0 == segments[1].xy1:
             segments = [segments[1], segments[0]]
         else:
             raise ValueError("The segments must share a common end point.")
@@ -61,12 +61,12 @@ class PathCorner:
         """
         seg1 = self.segments[0]
         seg2 = self.segments[1]
-        line1 = Line.from_two_points(seg1.xy1, seg1.xy2)
-        line2 = Line.from_two_points(seg2.xy1, seg2.xy2)
+        line1 = Line.from_two_points(seg1.xy0, seg1.xy1)
+        line2 = Line.from_two_points(seg2.xy0, seg2.xy1)
 
         # check that the middle point is shared
-        if seg1.xy2 != seg2.xy1:
-            raise ValueError("Error in PathCorner.get_arc_seg_intersections(): " + f"the midpoint between the segments ({seg1.xy2}) and ({seg2.xy1}) isn't shared!")
+        if seg1.xy1 != seg2.xy0:
+            raise ValueError("Error in PathCorner.get_arc_seg_intersections(): " + f"the midpoint between the segments ({seg1.xy1}) and ({seg2.xy0}) isn't shared!")
 
         # don't search for the arc segment intersection of two segments with the same(ish) slope
         angle_a = line1.angle
@@ -75,8 +75,8 @@ class PathCorner:
         if self.debug:
             print(f"{angle_diff=}")
         if angle_diff < geo.ZERO_THRESH or angle_diff > (2*np.pi - geo.ZERO_THRESH):
-            tangent = line1.get_tangent_line(seg1.xy2)
-            return tangent.distance_along_line(self.bend_radius, seg1.xy2)
+            tangent = line1.get_tangent_line(seg1.xy1)
+            return tangent.distance_along_line(self.bend_radius, seg1.xy1)
 
         # 2. get the bend radius distance points away from each line
         def distance_along_tangent(line: Line, from_point: Point) -> tuple[Point, Point]:
@@ -88,10 +88,10 @@ class PathCorner:
             ret0 = tangent.distance_along_line(self.bend_radius, from_point)
             ret1 = tangent.reversed().distance_along_line(self.bend_radius, from_point)
             return ret0, ret1
-        pnts_dist_adj_a = distance_along_tangent(line1, seg1.xy2)
+        pnts_dist_adj_a = distance_along_tangent(line1, seg1.xy1)
         if self.debug:
             print(f"{pnts_dist_adj_a=}")
-        pnts_dist_adj_b = distance_along_tangent(line2, seg1.xy2)
+        pnts_dist_adj_b = distance_along_tangent(line2, seg1.xy1)
         if self.debug:
             print(f"{pnts_dist_adj_b=}")
 
@@ -109,8 +109,8 @@ class PathCorner:
                     return two_points[0]
                 else:
                     return two_points[1]
-        pnt_dist_adj_a = get_point_on_same_side(line1, seg2.xy2, pnts_dist_adj_a)
-        pnt_dist_adj_b = get_point_on_same_side(line2, seg1.xy1, pnts_dist_adj_b)
+        pnt_dist_adj_a = get_point_on_same_side(line1, seg2.xy1, pnts_dist_adj_a)
+        pnt_dist_adj_b = get_point_on_same_side(line2, seg1.xy0, pnts_dist_adj_b)
         if self.debug:
             print(f"{pnt_dist_adj_a=}\n{pnt_dist_adj_b=}")
 
@@ -199,17 +199,17 @@ class PathCorner:
         nincrements = max(nincrements, 1)
 
         # Find the tangent from the arc center to the path corner (aka the end of the first segment).
-        seg_tangent = self.segments[0].get_tangent_line(self.segments[0].xy2)
-        tan_tst_pnt = seg_tangent.distance_along_line(1.0, self.segments[0].xy2)
+        seg_tangent = self.segments[0].get_tangent_line(self.segments[0].xy1)
+        tan_tst_pnt = seg_tangent.distance_along_line(1.0, self.segments[0].xy1)
         if self.segments[0].is_point_on_right(arc_center):
             if self.segments[0].is_point_on_right(tan_tst_pnt):
                 seg_tangent = seg_tangent.reversed()
-                tan_tst_pnt2 = seg_tangent.distance_along_line(1.0, self.segments[0].xy2)
+                tan_tst_pnt2 = seg_tangent.distance_along_line(1.0, self.segments[0].xy1)
                 assert not self.segments[0].is_point_on_right(tan_tst_pnt2)
         else:
             if not self.segments[0].is_point_on_right(tan_tst_pnt):
                 seg_tangent = seg_tangent.reversed()
-                tan_tst_pnt2 = seg_tangent.distance_along_line(1.0, self.segments[0].xy2)
+                tan_tst_pnt2 = seg_tangent.distance_along_line(1.0, self.segments[0].xy1)
                 assert self.segments[0].is_point_on_right(tan_tst_pnt2)
 
         # Get the angle for the start of the first increment.
@@ -239,10 +239,10 @@ class PathCorner:
         fig, ax = plt.subplots(figsize=(10,10))
 
         # draw the segments
-        dx0, dy0 = self.segments[0].x2 - self.segments[0].x1, self.segments[0].y2 - self.segments[0].y1
-        ax.arrow(*self.segments[0].xy1, dx0, dy0, color="tab:blue")
-        dx1, dy1 = self.segments[1].x2 - self.segments[1].x1, self.segments[1].y2 - self.segments[1].y1
-        ax.arrow(*self.segments[1].xy1, dx1, dy1, color="tab:blue")
+        dx0, dy0 = self.segments[0].x1 - self.segments[0].x0, self.segments[0].y1 - self.segments[0].y0
+        ax.arrow(*self.segments[0].xy0, dx0, dy0, color="tab:blue")
+        dx1, dy1 = self.segments[1].x1 - self.segments[1].x0, self.segments[1].y1 - self.segments[1].y0
+        ax.arrow(*self.segments[1].xy0, dx1, dy1, color="tab:blue")
 
         # draw the center point
         ax.add_patch(plt.Circle(arc_center, self.bend_radius/10, color="tab:purple"))

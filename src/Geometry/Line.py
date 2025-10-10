@@ -98,10 +98,10 @@ class Line:
         return Line(Point(np.cos(angle), np.sin(angle)), y_intercept=y_intercept)
     
     @classmethod
-    def from_two_points(cls, pnt1: Point, pnt2: Point) -> "Line":
-        diff = pnt2 - pnt1
+    def from_two_points(cls, pnt0: Point, pnt1: Point) -> "Line":
+        diff = pnt1 - pnt0
         angle = np.atan2(diff.y, diff.x)
-        return cls.from_angle_point(angle, pnt1)
+        return cls.from_angle_point(angle, pnt0)
 
     @property
     def is_vertical(self) -> bool:
@@ -117,7 +117,7 @@ class Line:
                ( not self.is_vertical )
 
     @property
-    def x1(self) -> float:
+    def x0(self) -> float:
         """
         The first x value that can be used to define the line from two points.
         If this line is vertical, then this value will be the x intercept.
@@ -128,7 +128,7 @@ class Line:
         return 0
 
     @property
-    def x2(self) -> float:
+    def x1(self) -> float:
         """
         The second x value that can be used to define the line from two points.
         If this line is vertical, then this value will be the x intercept.
@@ -137,11 +137,11 @@ class Line:
         if self.is_vertical:
             return self.x_intercept
         elif self.is_horizontal:
-            return self.x1+1 if self.x > 0 else self.x1-1
-        return self.x1+1
+            return self.x0+1 if self.x > 0 else self.x0-1
+        return self.x0+1
 
     @property
-    def y1(self) -> float:
+    def y0(self) -> float:
         """
         The first y value that can be used to define the line from two points.
         If this line is vertical, then this value will be 0.
@@ -152,7 +152,7 @@ class Line:
         return self.y_intercept
 
     @property
-    def y2(self) -> float:
+    def y1(self) -> float:
         """
         The first y value that can be used to define the line from two points.
         If this line is vertical, then this value will be +/- 10.
@@ -160,20 +160,20 @@ class Line:
         """
         if self.is_vertical:
             return 1 if self.y > 0 else -1
-        return self.slope*self.x2 + self.y_intercept
+        return self.slope*self.x1 + self.y_intercept
+    
+    @property
+    def xy0(self) -> Point:
+        return Point(self.x0, self.y0)
     
     @property
     def xy1(self) -> Point:
         return Point(self.x1, self.y1)
     
     @property
-    def xy2(self) -> Point:
-        return Point(self.x2, self.y2)
-    
-    @property
     def angle(self) -> float:
         """ Angle of this line, in the range 0-2pi """
-        ang = np.atan2(self.y2 - self.y1, self.x2 - self.x1)
+        ang = np.atan2(self.y1 - self.y0, self.x1 - self.x0)
         return geo.normalize_angle(ang)
     
     @property
@@ -347,8 +347,8 @@ class Line:
         return self.__class__.from_slope_intercept(tan_slope, tan_y_intercept)
     
     def reversed(self) -> "Line":
-        pnt1 = self.x1, self.y1
-        pnt2 = self.x2, self.y2
+        pnt1 = self.x0, self.y0
+        pnt2 = self.x1, self.y1
         return self.__class__.from_two_points(pnt2, pnt1)
     
     def __repr__(self) -> str:
