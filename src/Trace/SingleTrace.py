@@ -36,8 +36,14 @@ class _TraceLine:
     xy0_idx: int
     xy1_idx: int
     is_end: bool = False
+    """ True if this edge only connects to one other edge.
+    Mutually exclusive with is_solo and is_inner_edge. """
     is_solo: bool = False
+    """ True if this edge doesn't connect to any other edges.
+    Mutually exclusive with is_end and is_inner_edge. """
     is_inner_edge: bool = False
+    """ True if this edge connects to another edge on both ends.
+    Mutually exclusive with is_end and is_solo. """
 
     @property
     def xy_idxs(self) -> tuple[int, int]:
