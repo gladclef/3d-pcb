@@ -704,12 +704,10 @@ class SingleTrace(AbstractTrace):
         # Recalculate the starting and ending segments depending on
         # if we should be adding through-holes for the traces.
         if pins["a"] is not None:
-            x, y = pins["a"].x_offset, pins["a"].y_offset
-            segments[0] = LineSegment((x, y), segments[0].xy1)
+            segments[0] = LineSegment(pins["a"].location, segments[0].xy1)
 
         if pins["b"] is not None:
-            x, y = pins["b"].x_offset, pins["b"].y_offset
-            segments[-1] = LineSegment(segments[-1].xy0, (x, y))
+            segments[-1] = LineSegment(segments[-1].xy0, pins["b"].location)
 
         return segments
 
@@ -732,9 +730,9 @@ class SingleTrace(AbstractTrace):
             if pin is None:
                 continue
 
-            x, y = pin.x_offset, pin.y_offset
+            x, y = pin.location.x, pin.location.y
             y += Pin.through_hole_diameter() / 2 + Pin.via_diameter() / 2
-            adjusted_pin = Pin(None, "", "", x, y, pin.layer, pin.is_pad)
+            adjusted_pin = Pin(None, "", "", Point(x, y), pin.layer, pin.is_pad)
             ret[end] = adjusted_pin
 
         return ret

@@ -90,4 +90,4 @@ class Circle:
         return [circle], ret_lines
 
     def draw(self, ax: maxis.Axis):
-        ax.add_patch(plt.Circle(self.center_point, self.radius, edgecolor="grey", facecolor="None"))
+        ax.add_patch(plt.Circle(self.center_point.as_tuple(), self.radius, edgecolor="grey", facecolor="None"))

@@ -21,7 +21,7 @@ class Arc:
 
     @property
     def radius(self) -> float:
-        return np.sqrt((self.start_point[0] - self.center_point[0])**2 + (self.start_point[1] - self.center_point[1])**2)
+        return self.start_point.distance(self.center_point)
 
     @property
     def start_angle(self) -> float:
@@ -111,7 +111,7 @@ class Arc:
     def draw(self, ax: maxis.Axis):
         start_angle = np.rad2deg(self.start_angle)
         end_angle = np.rad2deg(self.end_angle)
-        ax.add_patch(mpatches.Arc(self.center_point,
+        ax.add_patch(mpatches.Arc(self.center_point.as_tuple(),
                                   self.radius*2,
                                   self.radius*2,
                                   angle=start_angle,

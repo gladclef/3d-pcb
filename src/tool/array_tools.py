@@ -42,7 +42,9 @@ def tuple_from_array(arr: np.ndarray | tuple | Point, expected_lengths: int | li
         tvals = arr
     
     elif isinstance(arr, Point):
-        return tuple_from_array((arr.x, arr.y), expected_lengths, desired_len)
+        input_type = "point"
+        input_len = 2
+        tvals = (arr.x, arr.y)
 
     else:
         if arr.shape[0] == 1:
@@ -66,7 +68,7 @@ def tuple_from_array(arr: np.ndarray | tuple | Point, expected_lengths: int | li
             return_vals[i] = tvals[i]
         return tuple(return_vals), input_len, input_type
 
-def retval_from_tuple(retval: np.ndarray | tuple, return_len: int, return_type: Literal["array"] | Literal["tuple"]) -> np.ndarray | tuple:
+def retval_from_tuple(retval: np.ndarray | tuple, return_len: int, return_type: Literal["array","tuple","point"]) -> np.ndarray | tuple:
     """
     Convert a numpy array or tuple to the specified output type and length.
 
@@ -103,6 +105,9 @@ def retval_from_tuple(retval: np.ndarray | tuple, return_len: int, return_type: 
         return tvals
     elif return_type == "array":
         return np.array(tvals)
+    elif return_type == "point":
+        assert return_len == 2
+        return Point(retval[0], retval[1])
     else:
         raise ValueError("Error in array_tools.retval_from_tuple(): " +
                          f"return_type must be one of \"array\" or \"tuple\", but is {return_type}!")

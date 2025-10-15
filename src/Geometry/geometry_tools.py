@@ -27,7 +27,7 @@ def angle_to_slope(angle: float) -> float:
 def apply_translation_rotation_flip(xy_or_xyz: tuple[float, float] | Point | tuple[float, float, float] | np.ndarray,
                                     translation: tuple[float, float] | Point,
                                     rotation: float,
-                                    flip: bool) -> np.ndarray | tuple:
+                                    flip: bool) -> np.ndarray | tuple | Point:
     """
     Apply translation, rotation, and optional flipping to a point or vector.
 

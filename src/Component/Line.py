@@ -94,6 +94,6 @@ class Line:
         return [line], ret_lines
 
     def draw(self, ax: maxis.Axis):
-        x = (self.xy1[0], self.xy2[0])
-        y = (self.xy1[1], self.xy2[1])
+        x = (self.xy1.x, self.xy2.x)
+        y = (self.xy1.y, self.xy2.y)
         ax.plot(x, y, color="grey")

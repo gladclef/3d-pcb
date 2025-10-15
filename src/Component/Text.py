@@ -46,10 +46,10 @@ class Text:
             A new Text instance with the applied transformations.
 
         """
-        x, y = geo.apply_translation_rotation_flip(self.location, translation, rotation, is_bottom)
+        xy = geo.apply_translation_rotation_flip(self.location, translation, rotation, is_bottom)
 
         ret = copy.deepcopy(self)
-        ret.location = Point(x, y)
+        ret.location = xy
         # ret.rotation += rotation
 
         return ret
@@ -84,7 +84,7 @@ class Text:
         return [text], ret_lines
 
     def draw(self, ax: maxis.Axis):
-        text_loc = self.x_offset, self.y_offset
+        text_loc = self.location.x, self.location.y
         rotation = np.rad2deg(self.rotation)
         if rotation > 170:
             rotation -= 180

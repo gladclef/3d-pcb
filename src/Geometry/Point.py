@@ -1,29 +1,38 @@
+import math
+
+
 class Point:
-    def __init__(self, x: float, y: float, delta: float=1e-4):
+    def __init__(self, x: float, y: float):
         self.x = x
         self.y = y
-        self.delta = delta
+
+        self.delta = 1e-3
+
+    def distance(self, other: "Point") -> float:
+        return math.sqrt((self.x - other.x)**2 + (self.y - other.y)**2)
 
     def almost_equal(self, other: "Point", delta: float=None) -> bool:
-        diff = self - other
-        xdiff, ydiff = abs(diff.x), abs(diff.y)
         if delta is None:
             delta = self.delta
-        if xdiff < delta and ydiff < delta:
+        if self.distance(other) < delta:
             return True
         return False
     
+    def as_tuple(self) -> tuple[float, float]:
+        """ The (x, y) value that represents this point. """
+        return (self.x, self.y)
+    
     def __add__(self, other: "Point") -> "Point":
-        return Point(self.x + other.x, self.y + other.y, max(self.delta, other.delta))
+        return Point(self.x + other.x, self.y + other.y)
     
     def __sub__(self, other: "Point") -> "Point":
-        return Point(self.x - other.x, self.y - other.y, max(self.delta, other.delta))
+        return Point(self.x - other.x, self.y - other.y)
     
     def __mul__(self, other: "Point") -> "Point":
-        return Point(self.x * other.x, self.y * other.y, max(self.delta, other.delta))
+        return Point(self.x * other.x, self.y * other.y)
     
     def __truediv__(self, other: "Point") -> "Point":
-        return Point(self.x / other.x, self.y / other.y, max(self.delta, other.delta))
+        return Point(self.x / other.x, self.y / other.y)
     
     def __abs__(self) -> "Point":
         return Point(abs(self.x), abs(self.y), self.delta)

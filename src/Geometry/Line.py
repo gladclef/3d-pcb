@@ -75,13 +75,13 @@ class Line:
     def from_slope_intercept(cls, slope: float, y_intercept: float) -> "Line":
         if abs(slope) >= geo.INF_THRESH:
             if slope > 0:
-                return cls(0, np.inf)
+                return cls(Point(0, np.inf))
             else:
-                return cls(0, -np.inf)
+                return cls(Point(0, -np.inf))
         elif abs(slope) <= geo.ZERO_THRESH:
-            return cls(10, 0, y_intercept)
+            return cls(Point(10, 0), y_intercept)
         else:
-            return cls(10, slope*10, y_intercept)
+            return cls(Point(10, slope*10), y_intercept)
     
     @classmethod
     def from_angle_point(cls, angle: float, point: Point) -> "Line":
@@ -105,15 +105,15 @@ class Line:
 
     @property
     def is_vertical(self) -> bool:
-        return (abs(self.y) > geo.INF_THRESH) or \
-               (abs(self.x) < geo.ZERO_THRESH) or \
-               (abs(self.y / self.x) > geo.INF_THRESH)
+        return (abs(self.xy.y) > geo.INF_THRESH) or \
+               (abs(self.xy.x) < geo.ZERO_THRESH) or \
+               (abs(self.xy.y / self.xy.x) > geo.INF_THRESH)
     
     @property
     def is_horizontal(self) -> bool:
-        return ( (abs(self.x) > geo.INF_THRESH) or \
-                 (abs(self.y) < geo.ZERO_THRESH) or \
-                 (abs(self.y / self.x) < geo.ZERO_THRESH) ) and \
+        return ( (abs(self.xy.x) > geo.INF_THRESH) or \
+                 (abs(self.xy.y) < geo.ZERO_THRESH) or \
+                 (abs(self.xy.y / self.xy.x) < geo.ZERO_THRESH) ) and \
                ( not self.is_vertical )
 
     @property
@@ -137,7 +137,7 @@ class Line:
         if self.is_vertical:
             return self.x_intercept
         elif self.is_horizontal:
-            return self.x0+1 if self.x > 0 else self.x0-1
+            return self.x0+1 if self.xy.x > 0 else self.x0-1
         return self.x0+1
 
     @property
@@ -159,7 +159,7 @@ class Line:
         This value is usually going to be slope*x2.
         """
         if self.is_vertical:
-            return 1 if self.y > 0 else -1
+            return 1 if self.xy.y > 0 else -1
         return self.slope*self.x1 + self.y_intercept
     
     @property
@@ -179,10 +179,10 @@ class Line:
     @property
     def slope(self) -> float:
         if self.is_vertical:
-            return np.inf if self.y > 0 else -np.inf
+            return np.inf if self.xy.y > 0 else -np.inf
         elif self.is_horizontal:
             return 0
-        return self.y / self.x
+        return self.xy.y / self.xy.x
     
     @property
     def rise(self) -> float:
@@ -199,9 +199,9 @@ class Line:
 
     def is_point_on_right(self, test_point: Point) -> bool:
         if self.is_vertical:
-            a, b = Point(self.x_intercept, 0), Point(self.x+self.x_intercept, self.y)
+            a, b = Point(self.x_intercept, 0), Point(self.xy.x+self.x_intercept, self.xy.y)
         elif self.is_horizontal or True:
-            a, b = Point(0, self.y_intercept), Point(self.x, self.y+self.y_intercept)
+            a, b = Point(0, self.y_intercept), Point(self.xy.x, self.xy.y+self.y_intercept)
         c = test_point
 
         is_on_left = (b.x - a.x)*(c.y - a.y) - (b.y - a.y)*(c.x - a.x) > 0
@@ -273,17 +273,17 @@ class Line:
         if self.is_vertical:
             from_x = from_x if from_x is not None else self.x_intercept
             from_y = from_y if from_y is not None else 0
-            if self.y > 0:
-                return (from_x, from_y + distance)
+            if self.xy.y > 0:
+                return Point(from_x, from_y + distance)
             else:
-                return (from_x, from_y - distance)
+                return Point(from_x, from_y - distance)
         if self.is_horizontal:
             from_x = from_x if from_x is not None else 0
             from_y = from_y if from_y is not None else self.y_intercept
-            if self.x > 0:
-                return (from_x + distance, from_y)
+            if self.xy.x > 0:
+                return Point(from_x + distance, from_y)
             else:
-                return (from_x - distance, from_y)
+                return Point(from_x - distance, from_y)
         
         # Use some defaults.
         from_x = from_x if from_x is not None else 0
@@ -305,7 +305,7 @@ class Line:
         #     x = sqrt(d^2 / (1 + slope^2))      equation 3
         #
         x = np.sqrt(distance**2 / (1 + self.slope**2))
-        if self.x < 0:
+        if self.xy.x < 0:
             x = -x
         dx = from_x + x
         dy = self.slope*x + from_y
@@ -347,10 +347,8 @@ class Line:
         return self.__class__.from_slope_intercept(tan_slope, tan_y_intercept)
     
     def reversed(self) -> "Line":
-        pnt1 = self.x0, self.y0
-        pnt2 = self.x1, self.y1
-        return self.__class__.from_two_points(pnt2, pnt1)
-    
+        return self.__class__.from_two_points(self.xy1, self.xy0)
+
     def __repr__(self) -> str:
         xi = "N/A" if self.x_intercept is None else f"{self.x_intercept:.3f}"
         yi = "N/A" if self.y_intercept is None else f"{self.y_intercept:.3f}"

@@ -19,14 +19,14 @@ class LineSegment(Line):
     @classmethod
     def from_vector(cls, x: float, y: float, y_intercept: float=None, x_intercept: float=None, length: float=1) -> "LineSegment":
         l0 = Line(x, y, y_intercept, x_intercept)
-        pnt0 = l0.x0, l0.y0
+        pnt0 = l0.xy0
         pnt1 = l0.distance_along_line(length, pnt0)
         cls(pnt0, pnt1)
 
     @classmethod
     def from_slope_intercept(cls, slope: float, y_intercept: float, length: float=1) -> "LineSegment":
         l0 = Line.from_slope_intercept(slope, y_intercept)
-        pnt0 = l0.x0, l0.x1
+        pnt0 = l0.xy0
         pnt1 = l0.distance_along_line(length, pnt0)
         return cls(pnt0, pnt1)
     
@@ -117,7 +117,7 @@ class LineSegment(Line):
             True if the returned value should be limited such that it is on the segment,
             False to allow the returned point to be beyond the segment's end.
         """
-        x, y = super().distance_along_line(distance, from_point)
+        xy = super().distance_along_line(distance, from_point)
 
         if limit_range:
             x0 = min(self.x0, self.x1)
@@ -125,10 +125,11 @@ class LineSegment(Line):
             x1 = max(self.x0, self.x1)
             y1 = max(self.y0, self.y1)
 
-            x = min(max(x, x0), x1)
-            y = min(max(y, y0), y1)
+            x = min(max(xy.x, x0), x1)
+            y = min(max(xy.y, y0), y1)
+            xy = Point(x, y)
         
-        return x, y
+        return xy
 
     def reversed(self) -> "LineSegment":
         # override parent method to return a line segment

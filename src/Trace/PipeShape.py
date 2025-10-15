@@ -21,7 +21,7 @@ class PipeShape:
     @property
     def diameter(self) -> float:
         xz_points = self.normalize_points()
-        xs = [p[0] for p in xz_points]
+        xs = [p.x for p in xz_points]
         xmin, xmax = np.min(xs), np.max(xs)
         return xmax - xmin
     
@@ -37,7 +37,7 @@ class PipeShape:
         if self.symetric_about_x:
             new_points: list[Pointz] = []
             for pnt in reversed(ret):
-                pnt = Pointz(pnt[0], -pnt[1])
+                pnt = Pointz(pnt.x, -pnt.z)
                 new_points.append(pnt)
             ret += new_points
             
@@ -45,7 +45,7 @@ class PipeShape:
         if self.symetric_about_z:
             new_points: list[Pointz] = []
             for pnt in reversed(ret):
-                pnt = Pointz(-pnt[0], pnt[1])
+                pnt = Pointz(-pnt.x, pnt.z)
                 new_points.append(pnt)
             ret += new_points
 
@@ -68,7 +68,7 @@ class PipeShape:
 
         # # Reorder the points so that they are in polar angle order,
         # # starting with the point closest to angle=0.
-        # points_with_angles = [(math.atan2(p[1], p[0]), p) for p in ret]
+        # points_with_angles = [(math.atan2(p.z, p.x), p) for p in ret]
         # sorted_points_with_angles = sorted(points_with_angles)
         # ret = [point for _, point in sorted_points_with_angles]
         
@@ -81,12 +81,12 @@ class PipeShape:
         """
         # get the cross section from the shape
         xz_points = np.array(self.normalize_points())
-        xyz_points = np.array([[x, 0, z] for x, z in xz_points])
+        xyz_points = np.array([[xz.x, 0, xz.z] for xz in xz_points])
         
         # apply rotation and translation
         r = Rotation.from_euler('z', angle+np.pi/2)
         xyz_rotated: np.ndarray = r.apply(xyz_points)
-        xyz_translated: np.ndarray = xyz_rotated + np.array([translation[0], translation[1], 0])
+        xyz_translated: np.ndarray = xyz_rotated + np.array([translation.x, translation.y, 0])
 
         ret: list[tuple[float, float, float]] = []
         for xyz_idx in range(xyz_translated.shape[0]):

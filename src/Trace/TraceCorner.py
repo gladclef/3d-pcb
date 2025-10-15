@@ -82,8 +82,8 @@ class TraceCorner(PathCorner, PntInc):
         # build up the xy points list
         while len(self.xypntidx_to_vtkidx) < xy_idx + 1:
             xy_point_idx = len(self.xypntidx_to_vtkidx)
-            (x, y), angle = self.get_center_line_points()[xy_point_idx]
-            loop_xyz_points = self.parent.shape.oriented_points(angle, (x, y))
+            xy, angle = self.get_center_line_points()[xy_point_idx]
+            loop_xyz_points = self.parent.shape.oriented_points(angle, xy)
             vtk_group = VtkPointGroup(np.array(loop_xyz_points))
             self.xypntidx_to_vtkidx.append(vtk_group)
 

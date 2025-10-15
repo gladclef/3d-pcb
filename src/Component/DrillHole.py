@@ -70,9 +70,9 @@ class DrillHole(ABC):
         is_bottom : bool
             If True, flip the coordinates along the x-axis after applying translation and rotation.
         """
-        x, y = self.x_offset, self.y_offset
-        x, y = geo.apply_translation_rotation_flip((x, y), translation, rotation, is_bottom)
-        self.x_offset, self.y_offset = x, y
+        xy = self.location
+        xy = geo.apply_translation_rotation_flip(xy, translation, rotation, is_bottom)
+        self.location = xy
 
     def to_vtk(self, polydata: vtk.vtkPolyData) -> vtk.vtkPolyData:
         radius = self.diameter / 2
@@ -89,11 +89,11 @@ class DrillHole(ABC):
         # join the cylinder with the input polydata
         cylinder_polydata = cylinder.GetOutput()
         vt.rotate(cylinder_polydata, Rotation.from_euler('x', np.pi/2))
-        vt.translate(cylinder_polydata, (self.x_offset, self.y_offset, -height/2))
+        vt.translate(cylinder_polydata, (self.location.x, self.location.y, -height/2))
         vt.join(polydata, cylinder_polydata)
         
         return polydata
 
     def draw(self, ax: maxis.Axis):
-        center = (self.x_offset, self.y_offset)
+        center = (self.location.x, self.location.y)
         ax.add_patch(plt.Circle(center, .3, color="tab:orange"))
