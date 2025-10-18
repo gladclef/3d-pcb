@@ -249,10 +249,10 @@ class Path:
         segment: LineSegment
             A new LineSegment object.
         """
-        xy1 = xy_points[segment.xy0_idx]
-        xy2 = xy_points[segment.xy1_idx]
+        xy0 = xy_points[segment.xy0_idx]
+        xy1 = xy_points[segment.xy1_idx]
         source_line = segment.fline
-        return LineSegment(xy1, xy2, source_line=source_line)
+        return LineSegment(xy0, xy1, source_line=source_line)
 
     @classmethod
     def _build_segments(cls,
