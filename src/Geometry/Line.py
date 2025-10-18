@@ -161,7 +161,7 @@ class Line:
         if self.is_vertical:
             return 1 if self.xy.y > 0 else -1
         return self.slope*self.x1 + self.y_intercept
-    
+
     @property
     def xy0(self) -> Point:
         return Point(self.x0, self.y0)
@@ -352,6 +352,13 @@ class Line:
     
     def reversed(self) -> "Line":
         return self.__class__.from_two_points(self.xy1, self.xy0)
+    
+    def angle_between(self, other: "Line"):
+        """ Returns the angle between this line and the other line, between [0-pi) radians. """
+        rel_angle = abs(self.angle - other.angle)
+        if rel_angle > np.pi:
+            rel_angle = 2*np.pi - rel_angle
+        return rel_angle
 
     def __repr__(self) -> str:
         xi = "N/A" if self.x_intercept is None else f"{self.x_intercept:.3f}"

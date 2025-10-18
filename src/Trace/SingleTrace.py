@@ -44,10 +44,42 @@ class _TraceLine:
     is_inner_edge: bool = False
     """ True if this edge connects to another edge on both ends.
     Mutually exclusive with is_end and is_solo. """
+    joined_ends: list[int] = dataclasses.field(default_factory=list)
+    """ If this contains a 0, then self.xy0_idx connects to another edge.
+    If this contains a 1, then self.xy1_idx connects to another edge. """
 
     @property
     def xy_idxs(self) -> tuple[int, int]:
         return (self.xy0_idx, self.xy1_idx)
+
+    @property
+    def joined_idxs(self) -> list[int]:
+        return [self.xy_idxs[je] for je in self.joined_ends]
+
+    def joined_points(self, xy_points: list[Point]) -> list[Point]:
+        """ Return the points that correspond to any indexes in self.joined_ends """
+        return self._points(xy_points, self.joined_idxs)
+    
+    @property
+    def unjoined_ends(self) -> list[int]:
+        """ If this contains a 0, then self.xy0_idx does not connect to another edge.
+        If this contains a 1, then self.xy1_idx does not connect to another edge. """
+        return list(filter(lambda idx: idx not in self.joined_ends, [0, 1]))
+    
+    @property
+    def unjoined_idxs(self) -> list[int]:
+        return [self.xy_idxs[uje] for uje in self.unjoined_ends]
+        
+    def unjoined_points(self, xy_points: list[Point]) -> list[Point]:
+        """ Return the points that correspond to any indexes in self.unjoined_ends """
+        return self._points(xy_points, self.unjoined_idxs)
+
+    def _points(self, xy_points: list[Point], idxs: list[int]) -> list[Point]:
+        return [xy_points[idx] for idx in idxs]
+    
+    def points(self, xy_points: list[Point]) -> list[Point]:
+        """ Return the points that correspond to self.xy0_idx and self.xy1_idx """
+        return self._points(xy_points, self.xy_idxs)
 
     @classmethod
     def uncategorized(cls, trace_lines: list["_TraceLine"]) -> list["_TraceLine"]:
@@ -580,22 +612,106 @@ class SingleTrace(AbstractTrace):
                 # find all end edges
                 for edge_idx, edge in enumerate(edges):
                     n_matches = 0
-                    matching_edges = ""
+                    matching_edges, m0, m1 = "", [], []
+                    edge.joined_ends = []
                     for other_edge in filter(lambda e: e != edge, edges):
-                        if (edge.xy1_idx in other_edge.xy_idxs) or (edge.xy2_idx in other_edge.xy_idxs):
+                        if (edge.xy0_idx in other_edge.xy_idxs) or (edge.xy1_idx in other_edge.xy_idxs):
                             n_matches += 1
                             matching_edges += str(other_edge) + "\n\t\t"
-                    # this is probably where the logic for handling branching traces would go
-                    assert n_matches <= 2, f"Found more than 2 matching edges for source edge!\n\tSource edge:\n\t\t{edge}\n\tMatching edges:\n\t\t{matching_edges}\nIs it possible that you have traces that fork?"
-                    if n_matches == 0:
+                            if (edge.xy0_idx in other_edge.xy_idxs):
+                                m0.append(other_edge)
+                            else:
+                                m1.append(other_edge)
+                    
+                    # check for and handle branching traces
+                    if len(m0) > 1 or len(m1) > 1:
+                        n_ends, n_inner = 0, 0
+
+                        # for each end, count the number of branching traces off of that end
+                        for end_idx, m, other_m in [(0, m0, m1), (1, m1, m0)]:
+                            if len(m) == 0:
+                                n_ends += 1
+                            elif len(m) == 1:
+                                n_inner += 1
+                                edge.joined_ends.append(end_idx)
+                            elif len(m) == 2:
+                                # two branching traces, choose one of them to be the end
+                                edge2line = lambda e: Line.from_two_points(xy_points[e.xy0_idx], xy_points[e.xy1_idx])
+                                l0, l1, l2 = edge2line(edge), edge2line(m[0]), edge2line(m[1])
+                                l01a, l02a, l12a = l0.angle_between(l1), l0.angle_between(l2), l1.angle_between(l2)
+                                zero2pi = lambda a: np.pi if a < 1e-6 else a
+                                l01a, l02a, l12a = zero2pi(l01a), zero2pi(l02a), zero2pi(l12a)
+                                # mid = xy_points[edge.xy0_idx if end_idx == 0 else edge.xy1_idx]
+                                # p = lambda e: xy_points[e.xy0_idx] if xy_points[e.xy1_idx].almost_equal(mid) else xy_points[e.xy1_idx]
+                                # print(f"E0: {p(edge)}, E1: {p(m[0])}, E2: {p(m[1])}")
+                                # print(f"A01: {l01a:.4f}, A02: {l02a:.4f}, A12: {l12a:.4f}")
+                                if l01a == max([l01a, l02a, l12a]):
+                                    # don't count edge 3 as one of the joined edges
+                                    m.remove(m[1])
+                                    n_inner += 1
+                                    edge.joined_ends.append(end_idx)
+                                elif l02a == max([l01a, l02a, l12a]):
+                                    # don't count edge 2 as one of the joined edges
+                                    m.remove(m[0])
+                                    n_inner += 1
+                                    edge.joined_ends.append(end_idx)
+                                else:
+                                    # don't count this edge as one of the joined edges
+                                    n_ends += 1
+                            else: # len(m) > 2:
+                                raise RuntimeError(
+                                    "Branching traces with more than three intersections at a single location aren't currently handled."
+                                    + f"\n\tSource edge:\n\t\t{edge}\n\tMatching edges:\n\t\t{matching_edges}"
+                                )
+
+                        # assign the type to the edge
+                        if n_ends == 2:
+                            assert n_inner == 0
+                            assert len(edge.joined_ends) == 0
+                            edge.is_solo = True
+                        elif n_ends == 1:
+                            assert n_inner == 1
+                            assert len(edge.joined_ends) == 1
+                            edge.is_end = True
+                        else:
+                            assert n_inner == 2
+                            assert len(edge.joined_ends) == 2
+                            edge.is_inner_edge = True
+
+                    elif n_matches == 0:
                         edge.is_solo = True
                     elif n_matches == 1:
                         edge.is_end = True
+                        edge.joined_ends.append(0 if len(m0) == 1 else 1)
                     elif n_matches == 2:
+                        assert len(m0) == 1 and len(m1) == 1
                         edge.is_inner_edge = True
+                        edge.joined_ends.append(0)
+                        edge.joined_ends.append(1)
+
                 assert len(_TraceLine.uncategorized(edges)) == 0
                 assert len(_TraceLine.only_ends(edges)) % 2 == 0
                 assert len(_TraceLine.only_ends(edges) + _TraceLine.only_solos(edges) + _TraceLine.only_inners(edges)) == len(edges)
+
+                # Reassign edge end points to use points that are _almost_ equal,
+                # in case some ends almost match but don't quite.
+                end_points: list[Point] = []
+                for edge in _TraceLine.only_ends(edges):
+                    assert len(edge.unjoined_points(xy_points)) == 1
+                    old_end_point = edge.unjoined_points(xy_points)[0]
+
+                    new_end_point = old_end_point
+                    for end_point in end_points:
+                        if end_point.almost_equal(old_end_point, delta=1e-3):
+                            new_end_point = end_point
+
+                    if new_end_point == old_end_point:
+                        end_points.append(new_end_point)
+                    else:
+                        if 0 in edge.unjoined_ends:
+                            edge.xy0_idx = xy_points.index(new_end_point)
+                        else:
+                            edge.xy1_idx = xy_points.index(new_end_point)
 
                 # all solo edges are, by definition, an edge group
                 for edge in _TraceLine.only_solos(edges):
@@ -609,33 +725,33 @@ class SingleTrace(AbstractTrace):
                         end_a = end_edges.pop()
                         edge_group = [end_a]
                         end_b: _TraceLine = None
+                        latest_xy_idx = end_a.xy0_idx if 0 == end_a.joined_ends[0] else end_a.xy1_idx
 
                         # find the group inner edges
-                        group_xy_points = [end_a.xy0_idx, end_a.xy1_idx]
+                        group_xy_idxs = end_a.joined_idxs
                         found_inner_edge = True
                         while found_inner_edge:
                             found_inner_edge = False
                             for edge in copy.copy(inner_edges):
-                                if (edge.xy0_idx in group_xy_points) or (edge.xy1_idx in group_xy_points):
+                                if latest_xy_idx in edge.xy_idxs:
                                     edge_group.append(edge)
-                                    group_xy_points.append(edge.xy0_idx)
-                                    group_xy_points.append(edge.xy1_idx)
+                                    latest_xy_idx = edge.xy0_idx if edge.xy1_idx == latest_xy_idx else edge.xy1_idx
+                                    group_xy_idxs += edge.xy_idxs
                                     inner_edges.remove(edge)
                                     found_inner_edge = True
                                     break
 
                         # find the other end
                         for edge in end_edges:
-                            if (edge.xy0_idx in group_xy_points) or (edge.xy1_idx in group_xy_points):
+                            if latest_xy_idx in edge.xy_idxs:
                                 assert end_b is None
                                 end_b = edge
-                                group_xy_points.append(edge.xy0_idx)
-                                group_xy_points.append(edge.xy1_idx)
+                                group_xy_idxs += edge.xy_idxs
                         end_edges.remove(end_b)
                         edge_group.append(end_b)
 
                         # add the group
-                        assert len(set(group_xy_points)) == len(edge_group)+1
+                        assert len(set(group_xy_idxs)) == len(edge_group)
                         edge_groups.append(edge_group)
 
                         # check if we've found all the edge groups
