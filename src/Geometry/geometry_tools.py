@@ -63,9 +63,9 @@ def apply_translation_rotation_flip(xy_or_xyz: tuple[float, float] | Point | tup
     x, y, z = tuple(rotated.tolist())
 
     # apply translation
-    x, y = translation if isinstance(translation, tuple) else (translation.x, translation.y)
-    x += translation[0]
-    y += translation[1]
+    xt, yt = translation if isinstance(translation, tuple) else (translation.x, translation.y)
+    x += xt
+    y += yt
 
     # convert to the desired return type
     ret = at.retval_from_tuple((x, y, z), input_len, input_type)

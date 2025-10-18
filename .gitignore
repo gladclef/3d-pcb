@@ -2,3 +2,5 @@
 output/**/*
 examples/**/*-backups
 examples/**/*.lck
+*auto_saved_files*
+*.blend1

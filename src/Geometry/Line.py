@@ -171,6 +171,10 @@ class Line:
         return Point(self.x1, self.y1)
     
     @property
+    def xy_points(self) -> tuple[Point, Point]:
+        return self.xy0, self.xy1
+    
+    @property
     def angle(self) -> float:
         """ Angle of this line, in the range 0-2pi """
         ang = np.atan2(self.y1 - self.y0, self.x1 - self.x0)

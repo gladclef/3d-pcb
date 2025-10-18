@@ -286,15 +286,14 @@ class SingleTrace(AbstractTrace):
                 for end in ["a", "b"]:
                     closest_pin, xy_loc = closest_pins[end], xy_locs[end]
 
-                    if abs(pin.x_offset - xy_loc[0]) < Pin.through_hole_diameter():
-                        if abs(pin.y_offset - xy_loc[1]) < Pin.through_hole_diameter():
-                            if closest_pin is None:
+                    if pin.location.distance(xy_loc) < Pin.through_hole_diameter():
+                        if closest_pin is None:
+                            closest_pin = pin
+                        else:
+                            dist_pin = pin.location.distance(xy_loc)
+                            dist_closest = closest_pin.location.distance(xy_loc)
+                            if dist_pin < dist_closest:
                                 closest_pin = pin
-                            else:
-                                dist_pin = np.sqrt((pin.x_offset - xy_loc[0])**2 + (pin.y_offset - xy_loc[1])**2)
-                                dist_closest = np.sqrt((closest_pin.x_offset - xy_loc[0])**2 + (closest_pin.y_offset - xy_loc[1])**2)
-                                if dist_pin < dist_closest:
-                                    closest_pin = pin
 
                     if closest_pin is not None:
                         closest_pins[end] = closest_pin
@@ -688,7 +687,7 @@ class SingleTrace(AbstractTrace):
 
         return ret, pre_trace + post_trace
 
-    def _get_segments_with_through_holes(self) -> list[LineSegment]:
+    def _get_segments_with_through_holes(self) -> tuple[LineSegment]:
         """
         Gets the segments of the trace, with the first and last segment
         adjusted to match the pins on either end.
@@ -698,7 +697,7 @@ class SingleTrace(AbstractTrace):
         list[LineSegment]
             Updated segments including adjusted through-holes.
         """
-        segments = copy.copy(self.segments)
+        segments = list(self.segments)
         pins = self._get_pins_ajusted()
 
         # Recalculate the starting and ending segments depending on
@@ -709,7 +708,7 @@ class SingleTrace(AbstractTrace):
         if pins["b"] is not None:
             segments[-1] = LineSegment(segments[-1].xy0, pins["b"].location)
 
-        return segments
+        return tuple(segments)
 
     def _get_pins_ajusted(self) -> dict[str, Pin|None]:
         """
