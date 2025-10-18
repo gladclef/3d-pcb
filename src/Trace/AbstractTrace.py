@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 import vtk
 
@@ -11,6 +12,9 @@ from Trace.PipeShape import PipeShape, DEFAULT_PIPE_SHAPE
 from tool.globals import board_parameters as g
 from tool.units import *
 
+if TYPE_CHECKING:
+    from Trace.SingleTrace import _TraceLine
+
 class AbstractTrace(Path, PntInc, ABC):
     """
     Represents a wire trace on a PCB.
@@ -18,7 +22,7 @@ class AbstractTrace(Path, PntInc, ABC):
     def __init__(self,
                  source_lines: list[FLine],
                  xy_points: list[Point],
-                 segments: list[tuple[int, int] | tuple[int, int, FLine]] | list[LineSegment],
+                 segments: list["_TraceLine"] | list[LineSegment],
                  shape: PipeShape=None):
         Path.__init__(self, source_lines, xy_points, segments)
 

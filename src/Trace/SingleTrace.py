@@ -86,7 +86,7 @@ class SingleTrace(AbstractTrace):
                  source_lines: list[FLine],
                  layer: str,
                  xy_points: list[Point],
-                 segments: list[tuple[int, int] | tuple[int, int, FLine]] | list[LineSegment],
+                 segments: list["_TraceLine"] | list[LineSegment],
                  shape: PipeShape=None,
                  bend_radius: float=1,
                  allow_overlap=False,

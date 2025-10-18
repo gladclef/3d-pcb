@@ -19,11 +19,8 @@ class Path:
     def __init__(self,
                  source_lines: list[FLine],
                  xy_points: list[Point],
-                 segments: list[tuple[int, int] | tuple[int, int, FLine]] | list[LineSegment]
+                 segments: list["_TraceLine"] | list[LineSegment]
     ):
-        # import here to avoid an import cycle
-        from Trace.SingleTrace import _TraceLine
-
         # sanity check/normalize input
         assert isinstance(source_lines, list) and isinstance(source_lines[0], FLine)
         new_xy_points: list[Point] = []
@@ -35,19 +32,10 @@ class Path:
         self.source_lines = source_lines
 
         # build the list of segments the first time, to get the ordered points
-        xypntindicies_2_segments = self._build_segments(xy_points, segments)
-        new_segments = [s for i, s in xypntindicies_2_segments]
-        ordered_xy_points = self._get_xy_points_in_segment_order(new_segments)
+        self._xypntindicies_2_segments = self._build_segments(xy_points, segments)
 
-        # build the list of segments a second time, now that the points can be ordered
-        new_segments_idxs = []
-        for s in new_segments:
-            idx1 = ordered_xy_points.index(s.xy0)
-            idx2 = ordered_xy_points.index(s.xy1)
-            idx1, idx2 = tuple(sorted([idx1, idx2]))
-            new_segments_idxs.append(_TraceLine(s.source_line, idx1, idx2))
-        self._xy_points = ordered_xy_points
-        self._xypntindicies_2_segments = self._build_segments(ordered_xy_points, new_segments_idxs)
+        # order the points in segment order
+        self._order_xy_points_in_segment_order()
     
     @property
     def xy_points(self) -> list[Point]:
@@ -61,11 +49,30 @@ class Path:
         return [tuple([self.xy_points.index(p) for p in self.segment_xypnts(s)]) for s in self.segments]
 
     @property
-    def segments(self):
+    def segments(self) -> tuple[LineSegment]:
         """
         Returns a list of LineSegment objects that make up this Path.
         """
-        return [s[1] for s in self._xypntindicies_2_segments]
+        return tuple([s[1] for s in self._xypntindicies_2_segments])
+    
+    @segments.setter
+    def segments(self, val: list[LineSegment]):
+        def point_idx_closeornew(xy_pnt: Point) -> int:
+            if xy_pnt in self.xy_points:
+                return self.xy_points.index(xy_pnt)
+            else:
+                for i, pnt in enumerate(self.xy_points):
+                    if pnt.almost_equal(xy_pnt):
+                        return i
+                self._xy_points.append(xy_pnt)
+                return self.xy_points.index(xy_pnt)
+            
+        self._xypntindicies_2_segments.clear()
+        for segment in val:
+            idx0, idx1 = point_idx_closeornew(segment.xy0), point_idx_closeornew(segment.xy1)
+            self._xypntindicies_2_segments.append(((idx0, idx1), segment))
+        
+        self._order_xy_points_in_segment_order()
     
     def segments_at_xypnt(self, pnt_or_pntidx: Point | int) -> list[LineSegment]:
 
@@ -78,10 +85,9 @@ class Path:
         Returns:
             list[LineSegment]: The segments that include the specified point.
         """
-        try:
-            x, y = pnt_or_pntidx
+        if isinstance(pnt_or_pntidx, Point):
             pnt_idx = self.xy_points.index(pnt_or_pntidx)
-        except:
+        else:
             pnt_idx: int = pnt_or_pntidx
         
         matching_segments = filter(lambda s: pnt_idx in s[0], self._xypntindicies_2_segments)
@@ -220,15 +226,19 @@ class Path:
 
         # build new segments
         new_segments: list[LineSegment] = []
-        prev_segment = prev_segments[0]
-        for new_idx, next_segment in zip(reversed(new_xy2seg_indicies), reversed(next_segments)):
-            xy1, xy2 = prev_segment.xy0, next_segment.xy1
-            new_segment = LineSegment(xy1, xy2, next_segment.source_line)
-            new_segments.append(new_segment)
-            xy1_idx, xy2_idx = self.xy_points.index(xy1), self._xy_points.index(xy2)
-            assert xy1_idx >= 0
-            assert xy2_idx >= 0
-            self._xypntindicies_2_segments.insert(new_idx, ((xy1_idx, xy2_idx), new_segment))
+        if len(prev_segments) > 0 and len(next_segments) > 0:
+            prev_segment = prev_segments[0]
+            for new_idx, next_segment in zip(reversed(new_xy2seg_indicies), reversed(next_segments)):
+                xy1, xy2 = prev_segment.xy0, next_segment.xy1
+                new_segment = LineSegment(xy1, xy2, next_segment.source_line)
+                new_segments.append(new_segment)
+                xy1_idx, xy2_idx = self.xy_points.index(xy1), self._xy_points.index(xy2)
+                assert xy1_idx >= 0
+                assert xy2_idx >= 0
+                self._xypntindicies_2_segments.insert(new_idx, ((xy1_idx, xy2_idx), new_segment))
+        else:
+            # nothing to do, no new segments to build
+            pass
 
         return old_segments, new_segments
 
@@ -257,7 +267,7 @@ class Path:
     @classmethod
     def _build_segments(cls,
                         xy_points: list[Point], 
-                        segments: list[tuple[int, int] | tuple[int, int, FLine]] | list[LineSegment]
+                        segments: list["_TraceLine"] | list[LineSegment]
     ) -> list[tuple[tuple[int, int], LineSegment]]:
         """
         Builds the internal representation of this Path from a list of segments.
@@ -325,3 +335,21 @@ class Path:
                 ordered_xy_points.append(segment.xy0)
         
         return ordered_xy_points
+    
+    def _order_xy_points_in_segment_order(self):
+        # import here to avoid an import cycle
+        from Trace.SingleTrace import _TraceLine
+
+        ordered_xy_points = self._get_xy_points_in_segment_order(self.segments)
+
+        # build the list of segments now that the points are ordered
+        new_segments_idxs = []
+        for s in copy.copy(self.segments):
+            idx1 = ordered_xy_points.index(s.xy0)
+            idx2 = ordered_xy_points.index(s.xy1)
+            idx1, idx2 = tuple(sorted([idx1, idx2]))
+            new_segments_idxs.append(_TraceLine(s.source_line, idx1, idx2))
+
+        # assign the new xy points and segments
+        self._xy_points = ordered_xy_points
+        self._xypntindicies_2_segments = self._build_segments(ordered_xy_points, new_segments_idxs)
