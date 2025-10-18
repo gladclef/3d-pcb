@@ -400,10 +400,10 @@ class SingleTrace(AbstractTrace):
                         next_segments = list(filter(lambda s: s != segment, self.segments_at_xypnt(segment.xy1)))
                         if len(prev_segments) == 0:
                             # no previous line, replace with the next line
-                            self.remove_xypnt(segment.xy1)
+                            (old_segments, old_trace_corner), new_segments = self.remove_xypnt(segment.xy1)
                         elif len(next_segments) == 0:
                             # no next line, replace with the previous line
-                            self.remove_xypnt(segment.xy0)
+                            (old_segments, old_trace_corner), new_segments = self.remove_xypnt(segment.xy0)
                         else:
                             prev_segment = prev_segments[0]
                             new_segments: list[LineSegment] = []
@@ -415,7 +415,7 @@ class SingleTrace(AbstractTrace):
                                 
                                 # remove this segment
                                 if i == 0:
-                                    _, new_segments = self.remove_xypnt(segment.xy0)
+                                    (old_segments, old_trace_corner), new_segments = self.remove_xypnt(segment.xy0)
 
                                 # TODO fix this
                                 # # get the segment to be replaced
@@ -425,6 +425,16 @@ class SingleTrace(AbstractTrace):
 
                                 # # update the segment with an in-between point
                                 # self.insert_xypnt(segment.xy1, new_segment)
+                        
+                        # force removal of stale trace corners
+                        for segment in old_segments:
+                            for pnt in segment.xy_points:
+                                if pnt in self.xypnt_trace_corners:
+                                    del self.xypnt_trace_corners[pnt]
+                        for segment in new_segments:
+                            for pnt in segment.xy_points:
+                                if pnt in self.xypnt_trace_corners:
+                                    del self.xypnt_trace_corners[pnt]
 
                         found_short_trace = True
                         break
