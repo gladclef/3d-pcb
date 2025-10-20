@@ -35,7 +35,7 @@ class Point:
         return Point(self.x / other.x, self.y / other.y)
     
     def __abs__(self) -> "Point":
-        return Point(abs(self.x), abs(self.y), self.delta)
+        return Point(abs(self.x), abs(self.y))
     
     def __hash__(self):
         return hash(self.x + self.y + self.delta)

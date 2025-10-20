@@ -23,6 +23,10 @@ class Path:
     ):
         # sanity check/normalize input
         assert isinstance(source_lines, list) and isinstance(source_lines[0], FLine)
+        assert isinstance(xy_points, list) and isinstance(xy_points[0], Point)
+        from Trace.SingleTrace import _TraceLine
+        assert isinstance(segments, list) and (isinstance(segments[0], _TraceLine) or isinstance(segments[0], LineSegment))
+
         new_xy_points: list[Point] = []
         for xy_idx, point in enumerate(xy_points):
             point = point if isinstance(point, Point) else Point(*point)

@@ -5,26 +5,27 @@ import numpy as np
 import numpy.testing as npt
 
 from Geometry.Line import Line
+from Geometry.Point import Point as P2
 
 class TestLine(unittest.TestCase):
     def test_is_point_on_right(self):
-        self.assertTrue(Line( 1,  0).is_point_on_right(( 0, -1)))
-        self.assertTrue(Line( 1,  1).is_point_on_right(( 1,  0)))
-        self.assertTrue(Line( 0,  1).is_point_on_right(( 1,  1)))
-        self.assertTrue(Line(-1,  1).is_point_on_right(( 0,  1)))
-        self.assertTrue(Line(-1,  0).is_point_on_right((-1,  1)))
-        self.assertTrue(Line(-1, -1).is_point_on_right((-1,  0)))
-        self.assertTrue(Line( 0, -1).is_point_on_right((-1, -1)))
-        self.assertTrue(Line( 1, -1).is_point_on_right(( 0, -1)))
+        self.assertTrue(Line(P2( 1,  0)).is_point_on_right(P2( 0, -1)))
+        self.assertTrue(Line(P2( 1,  1)).is_point_on_right(P2( 1,  0)))
+        self.assertTrue(Line(P2( 0,  1)).is_point_on_right(P2( 1,  1)))
+        self.assertTrue(Line(P2(-1,  1)).is_point_on_right(P2( 0,  1)))
+        self.assertTrue(Line(P2(-1,  0)).is_point_on_right(P2(-1,  1)))
+        self.assertTrue(Line(P2(-1, -1)).is_point_on_right(P2(-1,  0)))
+        self.assertTrue(Line(P2( 0, -1)).is_point_on_right(P2(-1, -1)))
+        self.assertTrue(Line(P2( 1, -1)).is_point_on_right(P2( 0, -1)))
         
-        self.assertTrue( Line( 1,  0, y_intercept=1).is_point_on_right((  0,  .5)))
-        self.assertFalse(Line( 1,  0, y_intercept=1).is_point_on_right((  0, 1.5)))
-        self.assertTrue( Line( 0,  1, x_intercept=1).is_point_on_right((1.5,   1)))
-        self.assertFalse(Line( 0,  1, x_intercept=1).is_point_on_right(( .5,   1)))
-        self.assertTrue( Line(-1,  0, y_intercept=1).is_point_on_right(( -1, 1.5)))
-        self.assertFalse(Line(-1,  0, y_intercept=1).is_point_on_right(( -1,  .5)))
-        self.assertTrue( Line( 0, -1, x_intercept=1).is_point_on_right(( .5,  -1)))
-        self.assertFalse(Line( 0, -1, x_intercept=1).is_point_on_right((1.5,  -1)))
+        self.assertTrue( Line(P2( 1,  0), y_intercept=1).is_point_on_right(P2(  0,  .5)))
+        self.assertFalse(Line(P2( 1,  0), y_intercept=1).is_point_on_right(P2(  0, 1.5)))
+        self.assertTrue( Line(P2( 0,  1), x_intercept=1).is_point_on_right(P2(1.5,   1)))
+        self.assertFalse(Line(P2( 0,  1), x_intercept=1).is_point_on_right(P2( .5,   1)))
+        self.assertTrue( Line(P2(-1,  0), y_intercept=1).is_point_on_right(P2( -1, 1.5)))
+        self.assertFalse(Line(P2(-1,  0), y_intercept=1).is_point_on_right(P2( -1,  .5)))
+        self.assertTrue( Line(P2( 0, -1), x_intercept=1).is_point_on_right(P2( .5,  -1)))
+        self.assertFalse(Line(P2( 0, -1), x_intercept=1).is_point_on_right(P2(1.5,  -1)))
 
     def test_intersection(self):
         arr = np.array
@@ -90,7 +91,7 @@ class TestLine(unittest.TestCase):
         xrr = lambda v: np.array((v.slope, v.x_intercept))
         trr = lambda v: np.array(((v.x1, v.y1), (v.x2, v.y2)))
         si = Line.from_slope_intercept
-        tp = Line.from_two_points
+        tp = lambda t1, t2: Line.from_two_points(P2(*t1), P2(*t2))
         sq2 = np.sqrt(2)
 
         eq( actual=yrr( si(1, 0).get_tangent_line((0, 0)) ),            desired=arr((-1, 0)),             decimal=4 )
@@ -109,7 +110,7 @@ class TestLine(unittest.TestCase):
     def test_line_two_points_to_slope_intercept(self):
         eq = npt.assert_array_almost_equal
         arr = np.array
-        tp = Line.from_two_points
+        tp = lambda t1, t2: Line.from_two_points(P2(*t1), P2(*t2))
         to_si = lambda l: (l.slope, l.y_intercept)
         tx_si = lambda l: (l.slope, l.x_intercept)
 
@@ -126,7 +127,7 @@ class TestLine(unittest.TestCase):
         eq( actual=arr( to_si(tp((-10, 10),  (0, 0)))     ), desired=arr((-1, 0)),      decimal=4 )
         eq( actual=arr( to_si(tp((-10, -10), (0, 0)))     ), desired=arr((1, 0)),       decimal=4 )
 
-    def test_from_two_poitns(self):
+    def test_from_two_points(self):
         for i in range(100):
             x1 = random.random()*100
             y1 = random.random()*100
@@ -136,15 +137,15 @@ class TestLine(unittest.TestCase):
             while abs(y2 - y1) < 0.1:
                 y2 = random.random()*100
             
-            l1 = Line.from_two_points((x1, y1), (x2, y2))
-            l2 = Line.from_two_points((l1.x0, l1.y0), (l1.x1, l1.y1))
+            l1 = Line.from_two_points(P2(x1, y1), P2(x2, y2))
+            l2 = Line.from_two_points(P2(l1.x0, l1.y0), P2(l1.x1, l1.y1))
 
             self.assertAlmostEqual(l1.angle, l2.angle, places=5)
             self.assertAlmostEqual(l1.y_intercept, l2.y_intercept, places=5)
     
     def test_is_parallel_to(self):
         si = Line.from_slope_intercept
-        ap = Line.from_angle_point
+        ap = lambda a, t: Line.from_angle_point(a, P2(*t))
         π = np.pi
 
         self.assertFalse( si(0, 0).is_parallel_to(         si(np.inf, 0)    ) )
@@ -161,6 +162,62 @@ class TestLine(unittest.TestCase):
         self.assertTrue(  ap(π/4, (0,0)).is_parallel_to(   ap(π/4, (0,0))   ) )
         self.assertTrue(  ap(π/4, (0,0)).is_parallel_to(   ap(5*π/4, (0,0)) ) )
         self.assertTrue(  ap(5*π/4, (0,0)).is_parallel_to( ap(π/4, (0,0))   ) )
+
+    def test_intersection(self):
+        line1 = Line.from_slope_intercept(1, 0)
+        line2 = Line.from_slope_intercept(-1, 5)
+
+        intersection_point = line1.intersection(line2)
+        self.assertEqual(intersection_point.x, 2.5)
+        self.assertEqual(intersection_point.y, 2.5)
+
+        # Test parallel lines
+        line3 = Line.from_slope_intercept(1, 2)
+        self.assertIsNone(line1.intersection(line3))
+
+    def test_distance_along_line(self):
+        line = Line.from_slope_intercept(1.0, 0.0)
+
+        point = line.distance_along_line(5)
+        expected_from_0 = P2(np.sqrt(25/2), np.sqrt(25/2))
+        self.assertAlmostEqual(point.x, expected_from_0.x)
+        self.assertAlmostEqual(point.y, expected_from_0.y)
+
+        point = line.distance_along_line(5, expected_from_0)
+        expected_from_5 = P2(np.sqrt(25/2)*2, np.sqrt(25/2)*2)
+        self.assertAlmostEqual(point.x, expected_from_5.x)
+        self.assertAlmostEqual(point.y, expected_from_5.y)
+
+        point = line.distance_along_line(5, P2(-5, 5))
+        expected_from_offset = P2(np.sqrt(25/2)-5, np.sqrt(25/2)+5)
+        self.assertAlmostEqual(point.x, expected_from_offset.x)
+        self.assertAlmostEqual(point.y, expected_from_offset.y)
+
+    def test_get_tangent_line(self):
+        line = Line.from_slope_intercept(1.0, 0.0)
+
+        tangent = line.get_tangent_line(P2(3, 3))
+        self.assertEqual(tangent.slope, -1)
+        self.assertAlmostEqual(tangent.y_intercept, 6)
+
+    def test_angle_between(self):
+        # 90-degree angle for 45-degree lines
+        line1 = Line.from_slope_intercept(1, 0)
+        line2 = Line.from_slope_intercept(-1, 0)
+        angle = line1.angle_between(line2)
+        self.assertEqual(angle, np.pi/2)
+
+        # 90-degree angle for horizontal and vertical lines
+        line3 = Line.from_angle_point(0, P2(0, 0))
+        line4 = Line.from_angle_point(np.pi/2, P2(0, 0))
+        angle = line3.angle_between(line4)
+        self.assertEqual(angle, np.pi/2)
+
+        # 0-degree angle for parallel lines
+        line5 = Line.from_angle_point(0, P2(0, 0))
+        line6 = Line.from_angle_point(0, P2(1, 1))
+        angle = line5.angle_between(line6)
+        self.assertEqual(angle, 0)
 
 if __name__ == '__main__':
     unittest.main()
