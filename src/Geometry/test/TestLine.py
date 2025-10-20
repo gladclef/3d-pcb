@@ -200,6 +200,31 @@ class TestLine(unittest.TestCase):
         self.assertEqual(tangent.slope, -1)
         self.assertAlmostEqual(tangent.y_intercept, 6)
 
+    def test_reversed(self):
+        # line with positive slope
+        line = Line.from_slope_intercept(2, 0)
+        reversed_line = line.reversed()
+        self.assertAlmostEqual(reversed_line.run, -line.run)
+        self.assertAlmostEqual(reversed_line.rise, -line.rise)
+        
+        # line with negative slope
+        line = Line.from_slope_intercept(-2, 0)
+        reversed_line = line.reversed()
+        self.assertAlmostEqual(reversed_line.run, -line.run)
+        self.assertAlmostEqual(reversed_line.rise, -line.rise)
+        
+        # horizontal line
+        line = Line.from_two_points(P2(0, 0), P2(1, 0))
+        reversed_line = line.reversed()
+        self.assertAlmostEqual(reversed_line.run, -line.run)
+        self.assertAlmostEqual(reversed_line.rise, -line.rise)
+        
+        # vertical line
+        line = Line.from_two_points(P2(0, 0), P2(0, 1))
+        reversed_line = line.reversed()
+        self.assertAlmostEqual(reversed_line.run, -line.run)
+        self.assertAlmostEqual(reversed_line.rise, -line.rise)
+
     def test_angle_between(self):
         # 90-degree angle for 45-degree lines
         line1 = Line.from_slope_intercept(1, 0)

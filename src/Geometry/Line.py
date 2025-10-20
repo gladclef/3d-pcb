@@ -95,7 +95,9 @@ class Line:
         
         slope = np.sin(angle) / np.cos(angle)
         y_intercept = point.y - slope*point.x
-        return Line(Point(np.cos(angle), np.sin(angle)), y_intercept=y_intercept)
+        x = np.cos(angle) * np.sign(angle)
+        y = np.sin(angle) * np.sign(angle)
+        return Line(Point(x, y), y_intercept=y_intercept)
     
     @classmethod
     def from_two_points(cls, pnt0: Point, pnt1: Point) -> "Line":
@@ -138,7 +140,8 @@ class Line:
             return self.x_intercept
         elif self.is_horizontal:
             return self.x0+1 if self.xy.x > 0 else self.x0-1
-        return self.x0+1
+        sign = 1 if (self.xy.x > 0) else -1
+        return self.x0+sign
 
     @property
     def y0(self) -> float:
@@ -363,4 +366,4 @@ class Line:
     def __repr__(self) -> str:
         xi = "N/A" if self.x_intercept is None else f"{self.x_intercept:.3f}"
         yi = "N/A" if self.y_intercept is None else f"{self.y_intercept:.3f}"
-        return f"Line<x:{self.x:.3f},y:{self.y:.3f},xi:{xi},yi:{yi}>"
+        return f"Line<x:{self.run:.3f},y:{self.rise:.3f},xi:{xi},yi:{yi}>"
