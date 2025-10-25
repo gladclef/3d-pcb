@@ -47,6 +47,8 @@ class _TraceLine:
     joined_ends: list[int] = dataclasses.field(default_factory=list)
     """ If this contains a 0, then self.xy0_idx connects to another edge.
     If this contains a 1, then self.xy1_idx connects to another edge. """
+    is_branch: bool = False
+    """ True if this edge is an end that branches off of another SingleTrace. """
 
     @property
     def xy_idxs(self) -> tuple[int, int]:
@@ -122,7 +124,8 @@ class SingleTrace(AbstractTrace):
                  shape: PipeShape=None,
                  bend_radius: float=1,
                  allow_overlap=False,
-                 inner_vias: list[Via]=None):
+                 inner_vias: dict[Point, Via]=None,
+                 branch_vias: dict[Point, Via]=None):
         """
         Initializes a SingleTrace object.
 
@@ -148,6 +151,8 @@ class SingleTrace(AbstractTrace):
             If True, overlapping segments are allowed, by default False.
         inner_vias : list, optional
             Vias defined as part of a route.
+        branch_vias : list, optional
+            Vias automatically generated at branch points.
         """
         linenos = [l.lineno for l in source_lines]
         print(f"Creating {self.__class__.__name__} instance on layer {layer} from lines ({min(linenos)+1}-{max(linenos)+1})")# +
@@ -171,8 +176,10 @@ class SingleTrace(AbstractTrace):
         """
         self.pins: dict[str, Pin] = { "a": None, "b": None }
         """ The pins that indicate where to put vias at either end of this trace. """
-        self.inner_vias: dict[Point, Via] = {}
+        self.inner_vias: dict[Point, Via] = inner_vias or {}
         """ Vias defined as part of a route. """
+        self.branch_vias: dict[Point, Via] = branch_vias or {}
+        """ Vias automatically generated at branch points. """
 
         self.check_segment_duplicates(self.segments)
         if not allow_overlap:
@@ -540,7 +547,7 @@ class SingleTrace(AbstractTrace):
         return pre_routes + pre_route + pre_layer, layer, post_layer + post_route + post_routes
     
     @classmethod
-    def _parse_trace_lines(cls, trace: list[FLine]) -> tuple[list[Point], list[_TraceLine], list[Via]]:
+    def _parse_trace_lines(cls, trace: list[FLine]) -> tuple[list[Point], list[_TraceLine], dict[Point, Via]]:
         # parse the lines for this route+layer
         segment_lines = list(filter(lambda l: l.v.startswith("LINE "), trace))
         xy_points_orig: list[Point] = []
@@ -682,6 +689,7 @@ class SingleTrace(AbstractTrace):
                     assert n_inner == 1
                     assert len(edge.joined_ends) == 1
                     edge.is_end = True
+                    edge.is_branch = True
                 else:
                     assert n_inner == 2
                     assert len(edge.joined_ends) == 2
@@ -789,6 +797,23 @@ class SingleTrace(AbstractTrace):
         return edge_groups
 
     @classmethod
+    def _vias_at_branches(cls, xy_points: list[Point], edge_groups: list[list[_TraceLine]]) -> dict[Point, Via]:
+        ret: dict[Point, Via] = {}
+
+        for edge_group in edge_groups:
+            for edge in edge_group:
+                if edge.is_branch:
+                    if 0 in edge.joined_ends:
+                        pnt_idx = edge.xy1_idx
+                    else:
+                        assert 1 in edge.joined_ends
+                        pnt_idx = edge.xy0_idx
+                    pnt = xy_points[pnt_idx]
+                    ret[pnt] = Via(pnt, "Branch", [edge.fline])
+
+        return ret
+
+    @classmethod
     def from_cad_file(cls, cad_lines: list[FLine], shape: PipeShape=None, bend_radius: float=None) -> tuple[list["SingleTrace"], list[FLine]]:
         """
         Creates zero or more SingleTrace object from CAD file lines.
@@ -824,11 +849,15 @@ class SingleTrace(AbstractTrace):
 
         # group edges into traces
         edge_groups = cls._group_and_sort_edges(xy_points, edges)
-        ret: list[SingleTrace] = []
 
+        # add vias at branch points
+        branch_vias = cls._vias_at_branches(xy_points, edge_groups)
+
+        ret: list[SingleTrace] = []
         for edge_group in edge_groups:
             source_lines = [e.fline for e in edge_group]
-            instance = cls(source_lines, layer_name, xy_points, edge_group, shape, bend_radius, inner_vias=inner_vias)
+            instance = cls(source_lines, layer_name, xy_points, edge_group, shape, bend_radius,
+                           inner_vias=inner_vias, branch_vias=branch_vias)
             ret.append(instance)
 
         return ret, pre_trace + post_trace
@@ -931,6 +960,11 @@ class SingleTrace(AbstractTrace):
         for end, pin in self._get_pins_ajusted().items():
             if pin is not None:
                 pin.to_vtk(via_polydata)
+        
+        # add the vias
+        vias = list(self.inner_vias.values()) + list(self.branch_vias.values())
+        for via in vias:
+            via.to_vtk(via_polydata)
 
     def draw(self, ax: maxis.Axis):
         """
@@ -951,6 +985,12 @@ class SingleTrace(AbstractTrace):
 
         for seg in segments:
             ax.arrow(seg.x0, seg.y0, seg.x1-seg.x0, seg.y1-seg.y0, color="teal", head_width=.3)
+
+        for via in self.inner_vias.values():
+            via.draw(ax)
+
+        for via in self.branch_vias.values():
+            via.draw(ax)
 
 
 def _tst_trace_from_points():
