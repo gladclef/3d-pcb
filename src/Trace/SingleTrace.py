@@ -905,9 +905,18 @@ class SingleTrace(AbstractTrace):
             if pin is None:
                 continue
 
-            x, y = pin.location.x, pin.location.y
-            y += Pin.through_hole_diameter() / 2 + Pin.via_diameter() / 2
-            adjusted_pin = Pin(None, "", "", Point(x, y), pin.layer, pin.is_pad)
+            dist = Pin.through_hole_diameter() / 2 + Pin.via_diameter() / 2
+
+            if end == "a":
+                segment = self.segments[0]
+                assert pin.location.distance(segment.xy0) < Pin.through_hole_diameter() + Pin.via_diameter()
+                adjusted_loc = segment.distance_along_line(dist, pin.location)
+            else:
+                segment = self.segments[-1]
+                assert pin.location.distance(segment.xy1) < Pin.through_hole_diameter() + Pin.via_diameter()
+                adjusted_loc = segment.reversed().distance_along_line(dist, pin.location)
+
+            adjusted_pin = Pin(None, "", "", adjusted_loc, pin.layer, pin.is_pad)
             ret[end] = adjusted_pin
 
         return ret
