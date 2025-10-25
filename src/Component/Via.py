@@ -98,8 +98,8 @@ class Via(DrillHole):
         m = via_pattern.match(via.v.strip())
         if m is None:
             raise RuntimeError(f"Error in Via.from_cad_file: via line {via.lineno} from doesn't match expected pattern!\n\tLine: {via.v.strip()}\n\tSource file: {via.sourcefile}")
-        x = float(m.groups()[3])
-        y = float(m.groups()[4])
+        x = in2mm(float(m.groups()[3]))
+        y = in2mm(float(m.groups()[4]))
         name = m.groups()[7]
         ret = Via(Point(x, y), name, [via])
 
