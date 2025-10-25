@@ -622,6 +622,7 @@ class SingleTrace(AbstractTrace):
         To do this we look for all edges that join to each other.
         """
         if len(edges) == 1:
+            edges[0].is_solo = True
             return [edges]
         if not ALLOW_MULTIPLE_TRACES_PER_ROUTE:
             return [edges]
