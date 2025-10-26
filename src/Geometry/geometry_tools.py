@@ -6,7 +6,7 @@ from scipy.spatial.transform import Rotation
 from Geometry.Point import Point
 import tool.array_tools as at
 
-INF_THRESH = 1e5
+INF_THRESH = 1e4
 """ The threshold at which values are considered functionally equivalent to infinity. """
 ZERO_THRESH = 1/INF_THRESH
 """ The threshold at which values are considered functionally equivalent to zero. """
