@@ -55,6 +55,8 @@ class SingleTrace(AbstractTrace):
         ----------
         source_lines : list[FLine]
             The lines that were parsed in order to create this instance.
+        route : str
+            The name of the route that this instance came from (eg GND).
         layer : str
             The name of the layer that this instance came from (eg TOP, BOTTOM).
         segments : list[TraceLine | LineSegment]
@@ -83,6 +85,8 @@ class SingleTrace(AbstractTrace):
         if bend_radius is None:
             bend_radius = g.TRACE_CORNER_RADIUS
 
+        self.route = route
+        """ The name of the route that this instance came from (eg GND). """
         self.layer = layer
         """ Which layer of the board this trace is on """
         self._xypnt_vtk_verticies: dict[Point, VtkPointGroup] = {}
@@ -439,30 +443,32 @@ class SingleTrace(AbstractTrace):
         # get the lines from the cad file for the next route
         pre_routes, routes, post_routes = routes_helper.get_next_region(cad_lines)
         if len(routes) == 0:
-            return cad_lines, [], []
+            return cad_lines, [], [], None
         if len(routes) == 1:
             # just the end matcher "$ENDROUTES"
             assert routes[0].v.strip() == "$ENDROUTES"
-            return pre_routes, [], post_routes
+            return pre_routes, [], post_routes, None
         if len(routes) == 2:
             if routes[0].v.strip() == "$ROUTES" and routes[1].v.strip() == "$ENDROUTES":
-                return pre_routes, [], post_routes
+                return pre_routes, [], post_routes, None
         assert routes[-1].v.strip() in ["ROUTE", "$ENDROUTES"]
 
         # break up on route
         pre_route, route, post_route = route_helper.get_next_region(routes)
         if len(route) == 0:
-            return cad_lines, [], []
+            return cad_lines, [], [], None
         if len(route) == 1:
             # just the end matcher "ROUTE" or "$ENDROUTES"
             assert route[0].v.strip() in ["ROUTE", "$ENDROUTES"]
             # check if there are any more routes
-            pre_trace, trace, post_trace = cls.get_lines_for_next_trace(pre_routes + pre_route + post_route + post_routes)
+            pre_trace, trace, post_trace, route_name = cls.get_lines_for_next_trace(pre_routes + pre_route + post_route + post_routes)
             if len(trace) != 0:
-                return pre_trace, trace, post_trace
+                return pre_trace, trace, post_trace, route_name
             else:
-                return pre_routes + pre_route, [], post_route + post_routes
+                return pre_routes + pre_route, [], post_route + post_routes, route_name
+        assert route[0].v.strip().startswith("ROUTE")
         assert route[-1].v.strip().startswith("ROUTE") or route[-1].v.strip() == "$ENDROUTES"
+        route_name = re.match(r"ROUTE[ \t]*(.*)", route[0].v.strip()).groups()[0]
         post_route.insert(0, route.pop())
 
         # break up on layers
@@ -479,11 +485,11 @@ class SingleTrace(AbstractTrace):
             assert all([l.v.strip().startswith("TRACK") for l in pre_layer])
             assert all([l.v.strip().startswith("TRACK") for l in post_layer])
             # pre_trace, trace, post_trace = cls.get_lines_for_next_trace(pre_routes + pre_route + pre_layer + post_layer + post_route + post_routes)
-            pre_trace, trace, post_trace = cls.get_lines_for_next_trace(pre_routes + pre_route + post_route + post_routes)
+            pre_trace, trace, post_trace, route_name = cls.get_lines_for_next_trace(pre_routes + pre_route + post_route + post_routes)
             if len(trace) != 0:
-                return pre_trace, trace, post_trace
+                return pre_trace, trace, post_trace, route_name
             else:
-                return pre_routes + pre_route + pre_layer, [], post_layer + post_route + post_routes
+                return pre_routes + pre_route + pre_layer, [], post_layer + post_route + post_routes, route_name
         else:
             # multiple FLines matching this layer for this route
             assert route[0].v.startswith("ROUTE ")
@@ -491,7 +497,7 @@ class SingleTrace(AbstractTrace):
             if layer_helper.end_matches(layer[-1]):
                 post_layer.insert(0, layer.pop())
 
-        return pre_routes + pre_route + pre_layer, layer, post_layer + post_route + post_routes
+        return pre_routes + pre_route + pre_layer, layer, post_layer + post_route + post_routes, route_name
     
     @classmethod
     def _parse_trace_lines(cls, trace: list[FLine]) -> tuple[list[TraceLine], dict[Point, Via]]:
@@ -780,7 +786,7 @@ class SingleTrace(AbstractTrace):
             A tuple containing zero or more SingleTrace instances and the remaining lines from the CAD file.
         """
         # get the lines
-        pre_trace, trace, post_trace = cls.get_lines_for_next_trace(cad_lines)
+        pre_trace, trace, post_trace, route_name = cls.get_lines_for_next_trace(cad_lines)
         if len(trace) == 0:
             return [], pre_trace + post_trace
 
