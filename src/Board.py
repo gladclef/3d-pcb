@@ -1,6 +1,6 @@
 import copy
 import os
-from typing import TypeVar
+from typing import Literal, TypeVar
 
 import pyvista
 from scipy.spatial.transform import Rotation
@@ -11,7 +11,7 @@ from Component.Shape import Shape
 from FileIO.Line import Line
 from FileIO.CadFileHelper import CadFileHelper
 from Trace.SingleTrace import SingleTrace
-from Trace.PipeShape import DEFAULT_PIPE_SHAPE
+from Trace.PipeShape import DEFAULT_PIPE_SHAPE, PipeShape, PipeRect
 from tool.globals import board_parameters as g
 from tool.units import awg2mm
 import tool.vtk_tools as vt
@@ -24,13 +24,13 @@ class Board:
                  gencad_file: str,
                  traces: list[SingleTrace],
                  shapes: list[Shape],
-                 components: list[Component]):
+                 components: list[Component],
+                 limit_layers: list[str] = None):
         self.gencad_file = gencad_file
         self.traces = traces
         self.shapes = shapes
         self.components = components
-
-        self.limit_layers: list[str] = None
+        self.limit_layers = limit_layers or []
 
     def cleanup(self):
         """ Fixes and/or detects problems with the board that would make it difficult to boolean. """
@@ -38,23 +38,23 @@ class Board:
             trace.cleanup()
 
     @classmethod
-    def from_cad_file(cls, gencad_file: str) -> "Board":
+    def from_cad_file(cls, gencad_file: str, limit_layers=None, trace_shape: PipeShape=None) -> "Board":
         lines = Line.from_file(gencad_file)
 
         shapes_helper = CadFileHelper("$SHAPES", "$ENDSHAPES")
         components_helper = CadFileHelper("$COMPONENTS", "$ENDCOMPONENTS")
 
-        def get_instances(cls: T, lines: list[Line]) -> tuple[list[T], list[Line]]:
+        def get_instances(cls: T, lines: list[Line], *args, **kwargs) -> tuple[list[T], list[Line]]:
             ret: list[T] = []
 
-            instances, unmatched_lines = cls.from_cad_file(lines)
+            instances, unmatched_lines = cls.from_cad_file(lines, *args, **kwargs)
             while len(instances) > 0:
                 ret += instances
-                instances, unmatched_lines = cls.from_cad_file(unmatched_lines)
+                instances, unmatched_lines = cls.from_cad_file(unmatched_lines, *args, **kwargs)
             
             return ret, unmatched_lines
 
-        traces, lines = get_instances(SingleTrace, lines)
+        traces, lines = get_instances(SingleTrace, lines, shape=trace_shape)
         traces: list[SingleTrace] = traces
         pre_lines, shapes_lines, post_lines = shapes_helper.get_next_region(lines)
         lines = pre_lines + post_lines
@@ -68,7 +68,7 @@ class Board:
         for trace in traces:
             trace.add_trace_end_pins(components)
         
-        board = cls(gencad_file, traces, shapes, components)
+        board = cls(gencad_file, traces, shapes, components, limit_layers)
         return board
 
     def to_vtk(self) -> tuple[vtk.vtkPolyData, vtk.vtkPolyData, vtk.vtkPolyData]:
@@ -118,15 +118,29 @@ class Board:
         
 if __name__ == "__main__":
     g.DEFAULT_WIRE_DIAMETER = awg2mm(24)
-    g.TRACE_CORNER_RADIUS = 0.6
     g.CIRCLE_RESOLUTION = 16
 
     example_name = "deej"
     example_dir = os.path.join(os.path.dirname(__file__), "..", "examples", example_name)
-    limit_layers, layer_name = ["BOTTOM"], "_bottom"
+    limit_layers, layer_name = ["TOP"], "_top"
+    print_mode = "conductive_filament"
 
-    board = Board.from_cad_file(os.path.join(example_dir, "exports", f"{example_name}.cad"))
-    board.limit_layers = limit_layers
+    if print_mode == "wire_fill":
+        g.TRACE_CORNER_RADIUS = 0.6
+        trace_shape = DEFAULT_PIPE_SHAPE(g.DEFAULT_WIRE_DIAMETER)
+    elif print_mode == "conductive_filament":
+        g.TRACE_CORNER_RADIUS = 0.2
+        trace_shape = PipeRect(width=0.4, height=0.2)
+
+    board = Board.from_cad_file(
+        os.path.join(example_dir, "exports", f"{example_name}.cad"),
+        limit_layers,
+        trace_shape
+    )
+    board.cleanup()
+    # if print_mode == "conductive_filament":
+    #     for trace in board.traces:
+    #         trace.adjust_ends_for_conductive_filament()
     board.cleanup()
     board.draw_board()
 
