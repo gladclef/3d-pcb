@@ -1,7 +1,5 @@
 import copy
-import dataclasses
 import re
-from typing import Union
 
 import matplotlib.axis as maxis
 import numpy as np
@@ -21,6 +19,7 @@ from Geometry.Path import Path
 from Trace.AbstractTrace import AbstractTrace
 from Trace.PipeShape import PipeShape, DEFAULT_PIPE_SHAPE
 from Trace.TraceCorner import TraceCorner
+from Trace.TraceLine import TraceLine
 from Trace.VtkPointGroup import VtkPointGroup
 from tool.globals import board_parameters as g
 import tool.vtk_tools as vt
@@ -28,83 +27,6 @@ from tool.units import *
 
 
 ALLOW_MULTIPLE_TRACES_PER_ROUTE = True
-
-
-@dataclasses.dataclass
-class _TraceLine:
-    fline: FLine
-    xy0_idx: int
-    xy1_idx: int
-    is_end: bool = False
-    """ True if this edge only connects to one other edge.
-    Mutually exclusive with is_solo and is_inner_edge. """
-    is_solo: bool = False
-    """ True if this edge doesn't connect to any other edges.
-    Mutually exclusive with is_end and is_inner_edge. """
-    is_inner_edge: bool = False
-    """ True if this edge connects to another edge on both ends.
-    Mutually exclusive with is_end and is_solo. """
-    joined_ends: list[int] = dataclasses.field(default_factory=list)
-    """ If this contains a 0, then self.xy0_idx connects to another edge.
-    If this contains a 1, then self.xy1_idx connects to another edge. """
-    is_branch: bool = False
-    """ True if this edge is an end that branches off of another SingleTrace. """
-
-    @property
-    def xy_idxs(self) -> tuple[int, int]:
-        return (self.xy0_idx, self.xy1_idx)
-
-    @property
-    def joined_idxs(self) -> list[int]:
-        return [self.xy_idxs[je] for je in self.joined_ends]
-
-    def joined_points(self, xy_points: list[Point]) -> list[Point]:
-        """ Return the points that correspond to any indexes in self.joined_ends """
-        return self._points(xy_points, self.joined_idxs)
-
-    @property
-    def unjoined_ends(self) -> list[int]:
-        """ If this contains a 0, then self.xy0_idx does not connect to another edge.
-        If this contains a 1, then self.xy1_idx does not connect to another edge. """
-        return list(filter(lambda idx: idx not in self.joined_ends, [0, 1]))
-
-    @property
-    def unjoined_idxs(self) -> list[int]:
-        return [self.xy_idxs[uje] for uje in self.unjoined_ends]
-
-    def unjoined_points(self, xy_points: list[Point]) -> list[Point]:
-        """ Return the points that correspond to any indexes in self.unjoined_ends """
-        return self._points(xy_points, self.unjoined_idxs)
-
-    def _points(self, xy_points: list[Point], idxs: list[int]) -> list[Point]:
-        return [xy_points[idx] for idx in idxs]
-
-    def points(self, xy_points: list[Point]) -> list[Point]:
-        """ Return the points that correspond to self.xy0_idx and self.xy1_idx """
-        return self._points(xy_points, self.xy_idxs)
-
-    @classmethod
-    def uncategorized(cls, trace_lines: list["_TraceLine"]) -> list["_TraceLine"]:
-        return list(filter(lambda tl: not tl.is_end and not tl.is_solo and not tl.is_inner_edge, trace_lines))
-
-    @classmethod
-    def only_ends(cls, trace_lines: list["_TraceLine"]) -> list["_TraceLine"]:
-        return list(filter(lambda tl: tl.is_end, trace_lines))
-
-    @classmethod
-    def only_solos(cls, trace_lines: list["_TraceLine"]) -> list["_TraceLine"]:
-        return list(filter(lambda tl: tl.is_solo, trace_lines))
-
-    @classmethod
-    def only_inners(cls, trace_lines: list["_TraceLine"]) -> list["_TraceLine"]:
-        return list(filter(lambda tl: tl.is_inner_edge, trace_lines))
-
-    @classmethod
-    def not_solo(cls, trace_lines: list["_TraceLine"]) -> list["_TraceLine"]:
-        return list(filter(lambda tl: not tl.is_solo, trace_lines))
-
-    def __repr__(self):
-        return f"<{self.xy0_idx}, {self.xy1_idx}, {self.fline}>"
 
 
 class SingleTrace(AbstractTrace):
@@ -421,6 +343,33 @@ class SingleTrace(AbstractTrace):
         
         return (old_segments, trace_corner), new_segments
 
+    def change_segment_points(self, segment: LineSegment, new_xy0: Point = None, new_xy1: Point = None) -> LineSegment:
+        new_segment = super().change_segment_points(segment, new_xy0, new_xy1)
+
+        for old_pnt, new_pnt in [(segment.xy0, new_xy0), (segment.xy1, new_xy1)]:
+            if new_pnt is None:
+                continue
+
+            if old_pnt in self.inner_vias:
+                via = self.inner_vias[old_pnt]
+                self.inner_vias[new_pnt] = Via(new_pnt, via.name, via.source_lines)
+                del self.inner_vias[old_pnt]
+
+            if old_pnt in self.branch_vias:
+                via = self.branch_vias[old_pnt]
+                self.branch_vias[new_pnt] = Via(new_pnt, via.name, via.source_lines)
+                del self.branch_vias[old_pnt]
+
+            for end in list(self.pins.keys()):
+                pin = self.pins[end]
+                self.pins[end] = Pin(pin.parent, pin.pin_description, pin.pad_name, new_pnt, pin.layer, pin.is_pad)
+            
+            if old_pnt in self.xypnt_trace_corners:
+                del self.xypnt_trace_corners[old_pnt]
+        
+        print(f"change_segment_points() from\n\t[{segment.xy0},{segment.xy1}] to\n\t[{new_segment.xy0},{new_segment.xy1}]")
+        return new_segment
+
     def cleanup(self):
         """ Fixes and/or detects problems with the board that would make it difficult to boolean. """
         def cleanup_short_traces():
@@ -549,7 +498,7 @@ class SingleTrace(AbstractTrace):
         # parse the lines for this route+layer
         segment_lines = list(filter(lambda l: l.v.startswith("LINE "), trace))
         xy_points_orig: list[Point] = []
-        edges: list[_TraceLine] = []
+        edges: list[TraceLine] = []
         for segment_line in segment_lines:
 
             x0, y0, x1, y1 = tuple(map(float, segment_line.v.strip()[5:].split(" ")))
@@ -573,13 +522,13 @@ class SingleTrace(AbstractTrace):
         return edges, inner_vias
 
     @classmethod
-    def _sort_edges_in_groups(cls, edge_groups: list[list[_TraceLine]]):
+    def _sort_edges_in_groups(cls, edge_groups: list[list[TraceLine]]):
         # order the edges in the edge groups
         for edge_group_idx, edge_group in enumerate(copy.copy(edge_groups)):
             if len(edge_group) == 1:
                 assert edge_group[0].is_solo
                 continue
-            assert len(_TraceLine.only_solos(edge_group)) == 0
+            assert len(TraceLine.only_solos(edge_group)) == 0
 
             end_a, end_b = edge_group[0], edge_group[-1]
             group_inner_edges = edge_group[1:-1]
@@ -594,7 +543,7 @@ class SingleTrace(AbstractTrace):
             edge_groups[edge_group_idx] = new_edge_group
 
     @classmethod
-    def _order_xy_points_in_edges(cls, edge_groups: list[list[_TraceLine]]):
+    def _order_xy_points_in_edges(cls, edge_groups: list[list[TraceLine]]):
         # orient adjacent edges
         for edge_group in edge_groups:
             if len(edge_group) == 1:
@@ -623,7 +572,7 @@ class SingleTrace(AbstractTrace):
         if not ALLOW_MULTIPLE_TRACES_PER_ROUTE:
             return [edges]
         
-        edge_groups: list[list[_TraceLine]] = []
+        edge_groups: list[list[TraceLine]] = []
 
         # find all end edges
         for edge_idx, edge in enumerate(edges):
@@ -703,14 +652,14 @@ class SingleTrace(AbstractTrace):
                 edge.joined_ends.append(0)
                 edge.joined_ends.append(1)
 
-        assert len(_TraceLine.uncategorized(edges)) == 0
-        assert len(_TraceLine.only_ends(edges)) % 2 == 0
-        assert len(_TraceLine.only_ends(edges) + _TraceLine.only_solos(edges) + _TraceLine.only_inners(edges)) == len(edges)
+        assert len(TraceLine.uncategorized(edges)) == 0
+        assert len(TraceLine.only_ends(edges)) % 2 == 0
+        assert len(TraceLine.only_ends(edges) + TraceLine.only_solos(edges) + TraceLine.only_inners(edges)) == len(edges)
 
         # Reassign edge end points to use points that are _almost_ equal,
         # in case some ends almost match but don't quite.
         end_points: list[Point] = []
-        for edge in _TraceLine.only_ends(edges):
+        for edge in TraceLine.only_ends(edges):
             assert len(edge.unjoined_points) == 1
             old_end_point = edge.unjoined_points[0]
 
@@ -728,17 +677,17 @@ class SingleTrace(AbstractTrace):
                     edge.xy1 = new_end_point
 
         # all solo edges are, by definition, an edge group
-        for edge in _TraceLine.only_solos(edges):
+        for edge in TraceLine.only_solos(edges):
             edge_groups.append([edge])
 
         # get the edges for each group
-        end_edges = _TraceLine.only_ends(edges)
-        inner_edges = _TraceLine.only_inners(edges)
+        end_edges = TraceLine.only_ends(edges)
+        inner_edges = TraceLine.only_inners(edges)
         if len(end_edges) > 0:
             while True:
                 end_a = end_edges.pop()
                 edge_group = [end_a]
-                end_b: _TraceLine = None
+                end_b: TraceLine = None
                 latest_xy = end_a.xy0 if 0 == end_a.joined_ends[0] else end_a.xy1
 
                 # find the group inner edges
