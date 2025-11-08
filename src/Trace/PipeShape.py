@@ -267,22 +267,23 @@ class PipeBasicCircle(PipeShape):
 
         super().__init__(xz_pointz, symetric_about_x=False, symetric_about_z=False)
     
-class PipeDebug(PipeShape):
+class PipeRect(PipeShape):
     """
-    Box with 4 sides. Generally used for debugging.
+    Box with 4 sides and no special opening.
     """
-    def __init__(self, side_length: float):
+    def __init__(self, width: float, height: float):
         """
         Parameters
         ----------
-        side_length : float
-            The size of the box in millimeters.
+        width : float
+            The horizontal size of the box in millimeters.
+        height : float
+            The vertical size of the box in millimeters.
         """
         xz_pointz: list[list[float]] = []
 
-        # opening
-        xz_pointz.append([side_length/2, 0])
-        xz_pointz.append([side_length/2, side_length])
+        xz_pointz.append(Pointz(width/2, 0))
+        xz_pointz.append(Pointz(width/2, height))
 
         super().__init__(xz_pointz, symetric_about_x=False, symetric_about_z=True)
 
