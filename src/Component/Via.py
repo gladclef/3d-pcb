@@ -32,6 +32,10 @@ class Via(DrillHole):
         super().__init__(location, source_lines=source_lines, is_via=True)
 
         self.name = name
+    
+    @staticmethod
+    def via_diameter() -> float:
+        return g.VIA_DIAMETER + g.VIA_DIAMETER_CLEARANCE
 
     def apply_translation_rotation_layer(self, translation: tuple[float, float] | Point, rotation: float, is_bottom: bool) -> "Via":
         """
@@ -106,3 +110,6 @@ class Via(DrillHole):
         print(f"Parsed via on line {via.lineno}")
 
         return [ret], pre_via + post_via
+    
+    def draw(self, ax):
+        return self._draw(ax, diameter=self.via_diameter(), color="tab:orange")

@@ -50,10 +50,6 @@ class DrillHole(ABC):
             return self._diameter
     
     @staticmethod
-    def via_diameter() -> float:
-        return g.VIA_DIAMETER + g.VIA_DIAMETER_CLEARANCE
-    
-    @staticmethod
     def through_hole_diameter() -> float:
         return g.THROUGH_HOLE_DIAMETER + g.THROUGH_HOLE_DIAMETER_CLEARANCE
 
@@ -93,7 +89,11 @@ class DrillHole(ABC):
         vt.join(polydata, cylinder_polydata)
         
         return polydata
+    
+    def _draw(self, ax: maxis.Axis, diameter: float = None, color: str = "tab:olive"):
+        diameter = diameter or self.through_hole_diameter()
+        center = (self.location.x, self.location.y)
+        ax.add_patch(plt.Circle(center, diameter, color=color))
 
     def draw(self, ax: maxis.Axis):
-        center = (self.location.x, self.location.y)
-        ax.add_patch(plt.Circle(center, .3, color="tab:orange"))
+        self._draw(ax)
