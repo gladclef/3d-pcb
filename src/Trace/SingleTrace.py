@@ -118,9 +118,9 @@ class SingleTrace(AbstractTrace):
 
     def __init__(self,
                  source_lines: list[FLine],
+                 route: str,
                  layer: str,
-                 xy_points: list[Point],
-                 segments: list["_TraceLine"] | list[LineSegment],
+                 segments: list[TraceLine | LineSegment],
                  shape: PipeShape=None,
                  bend_radius: float=1,
                  allow_overlap=False,
@@ -135,11 +135,9 @@ class SingleTrace(AbstractTrace):
             The lines that were parsed in order to create this instance.
         layer : str
             The name of the layer that this instance came from (eg TOP, BOTTOM).
-        xy_points : list[Point]
-            List of XY coordinates defining the trace points.
-        segments : Union[list[tuple[int, int]], list[LineSegment]]
+        segments : list[TraceLine | LineSegment]
             List of line segments. Each segment can be defined as either
-            a tuple of xy_point indices or a LineSegment object.
+            a TraceLine or a LineSegment object.
         shape : PipeShape, optional
             Shape to extrude along the trace's path, or None to use the
             DEFAULT_PIPE_SHAPE. By default None.
@@ -157,7 +155,7 @@ class SingleTrace(AbstractTrace):
         linenos = [l.lineno for l in source_lines]
         print(f"Creating {self.__class__.__name__} instance on layer {layer} from lines ({min(linenos)+1}-{max(linenos)+1})")# +
         #      ":\n\t" + "\n\t".join([l.v.rstrip() for l in source_lines]))
-        super().__init__(source_lines, xy_points, segments, shape)
+        super().__init__(source_lines, segments, shape)
 
         # set some defaults
         if bend_radius is None:
@@ -174,7 +172,7 @@ class SingleTrace(AbstractTrace):
         Radius of the allowed trace bends. Trace segment intersections will
         be rounded out using TraceCorners to match this bend radius.
         """
-        self.pins: dict[str, Pin] = { "a": None, "b": None }
+        self.pins: dict[int, Pin] = { 0: None, 1: None }
         """ The pins that indicate where to put vias at either end of this trace. """
         self.inner_vias: dict[Point, Via] = inner_vias or {}
         """ Vias defined as part of a route. """
@@ -315,14 +313,14 @@ class SingleTrace(AbstractTrace):
             List of components to search for closest through-hole pins.
         """
         # get the ends of the first and last segments
-        xy_locs = { "a": self.segments[0].xy0, "b": self.segments[-1].xy1 }
+        xy_locs = { 0: self.segments[0].xy0, 1: self.segments[-1].xy1 }
 
         # find the component through holes that most closely match this instance
-        closest_pins: dict[str, Pin] = { "a": None, "b": None }
+        closest_pins: dict[int, Pin] = { 0: None, 1: None }
         for component in components:
             component = component.get_transformed()
             for pin in component.shape.pins:
-                for end in ["a", "b"]:
+                for end in [0, 1]:
                     closest_pin, xy_loc = closest_pins[end], xy_locs[end]
 
                     if pin.location.distance(xy_loc) < Pin.through_hole_diameter():
@@ -338,7 +336,7 @@ class SingleTrace(AbstractTrace):
                         closest_pins[end] = closest_pin
 
         # add the vias, as necessary
-        for end in ["a", "b"]:
+        for end in [0, 1]:
             closest_pin = closest_pins[end]
             if closest_pin is None:
                 # don't need to add a via if the trace doesn't end at a pad
@@ -547,7 +545,7 @@ class SingleTrace(AbstractTrace):
         return pre_routes + pre_route + pre_layer, layer, post_layer + post_route + post_routes
     
     @classmethod
-    def _parse_trace_lines(cls, trace: list[FLine]) -> tuple[list[Point], list[_TraceLine], dict[Point, Via]]:
+    def _parse_trace_lines(cls, trace: list[FLine]) -> tuple[list[TraceLine], dict[Point, Via]]:
         # parse the lines for this route+layer
         segment_lines = list(filter(lambda l: l.v.startswith("LINE "), trace))
         xy_points_orig: list[Point] = []
@@ -561,9 +559,7 @@ class SingleTrace(AbstractTrace):
             if point1 not in xy_points_orig:
                 xy_points_orig.append(point1)
 
-            point0_idx, point1_idx = xy_points_orig.index(point0), xy_points_orig.index(point1)
-            edges.append(_TraceLine(segment_line, point0_idx, point1_idx))
-        xy_points: list[Point] = [Point(in2mm(p.x), in2mm(p.y)) for p in xy_points_orig]
+            edges.append(TraceLine(segment_line, point0, point1))
 
         # parse the vias for this route
         vias, l = Via.from_cad_file(trace)
@@ -574,7 +570,7 @@ class SingleTrace(AbstractTrace):
                 print(f"Found inner via for single trace at line {via.source_lines[0].lineno}")
             vias, l = Via.from_cad_file(l)
 
-        return xy_points, edges, inner_vias
+        return edges, inner_vias
 
     @classmethod
     def _sort_edges_in_groups(cls, edge_groups: list[list[_TraceLine]]):
@@ -590,7 +586,7 @@ class SingleTrace(AbstractTrace):
             new_edge_group = [end_a]
             while len(group_inner_edges) > 0:
                 for edge in copy.copy(group_inner_edges):
-                    if (edge.xy0_idx in new_edge_group[-1].xy_idxs) or (edge.xy1_idx in new_edge_group[-1].xy_idxs):
+                    if (edge.xy0 in new_edge_group[-1].xy_points) or (edge.xy1 in new_edge_group[-1].xy_points):
                         new_edge_group.append(edge)
                         group_inner_edges.remove(edge)
                         break
@@ -606,17 +602,17 @@ class SingleTrace(AbstractTrace):
 
             for edge_idx, edge in enumerate(edge_group[:-1]):
                 next_edge = edge_group[edge_idx]
-                if edge.xy0_idx in next_edge.xy_idxs:
-                    edge.xy0_idx, edge.xy1_idx = edge.xy1_idx, edge.xy0_idx
+                if edge.xy0 in next_edge.xy_points:
+                    edge.xy0, edge.xy1 = edge.xy1, edge.xy0
 
             # orient the last edge
             end_b = edge_group[-1]
             prev_edge = edge_group[-2]
-            if end_b.xy1_idx in prev_edge.xy_idxs:
-                end_b.xy0_idx, end_b.xy1_idx = end_b.xy1_idx, end_b.xy0_idx
+            if end_b.xy1 in prev_edge.xy_points:
+                end_b.xy0, end_b.xy1 = end_b.xy1, end_b.xy0
 
     @classmethod
-    def _group_edges(cls, xy_points: list[Point], edges: list[_TraceLine]) -> list[list[_TraceLine]]:
+    def _group_edges(cls, edges: list[TraceLine]) -> list[list[TraceLine]]:
         """
         Group edges that constitute a single trace (there can be multiple traces per route+layer).
         To do this we look for all edges that join to each other.
@@ -635,10 +631,10 @@ class SingleTrace(AbstractTrace):
             matching_edges, m0, m1 = "", [], []
             edge.joined_ends = []
             for other_edge in filter(lambda e: e != edge, edges):
-                if (edge.xy0_idx in other_edge.xy_idxs) or (edge.xy1_idx in other_edge.xy_idxs):
+                if (edge.xy0 in other_edge.xy_points) or (edge.xy1 in other_edge.xy_points):
                     n_matches += 1
                     matching_edges += str(other_edge) + "\n\t\t"
-                    if (edge.xy0_idx in other_edge.xy_idxs):
+                    if (edge.xy0 in other_edge.xy_points):
                         m0.append(other_edge)
                     else:
                         m1.append(other_edge)
@@ -656,7 +652,7 @@ class SingleTrace(AbstractTrace):
                         edge.joined_ends.append(end_idx)
                     elif len(m) == 2:
                         # two branching traces, choose one of them to be the end
-                        edge2line = lambda e: Line.from_two_points(xy_points[e.xy0_idx], xy_points[e.xy1_idx])
+                        edge2line = lambda e: Line.from_two_points(e.xy0, e.xy1)
                         l0, l1, l2 = edge2line(edge), edge2line(m[0]), edge2line(m[1])
                         l01a, l02a, l12a = l0.angle_between(l1), l0.angle_between(l2), l1.angle_between(l2)
                         zero2pi = lambda a: np.pi if a < 1e-6 else a
@@ -715,8 +711,8 @@ class SingleTrace(AbstractTrace):
         # in case some ends almost match but don't quite.
         end_points: list[Point] = []
         for edge in _TraceLine.only_ends(edges):
-            assert len(edge.unjoined_points(xy_points)) == 1
-            old_end_point = edge.unjoined_points(xy_points)[0]
+            assert len(edge.unjoined_points) == 1
+            old_end_point = edge.unjoined_points[0]
 
             new_end_point = old_end_point
             for end_point in end_points:
@@ -727,9 +723,9 @@ class SingleTrace(AbstractTrace):
                 end_points.append(new_end_point)
             else:
                 if 0 in edge.unjoined_ends:
-                    edge.xy0_idx = xy_points.index(new_end_point)
+                    edge.xy0 = new_end_point
                 else:
-                    edge.xy1_idx = xy_points.index(new_end_point)
+                    edge.xy1 = new_end_point
 
         # all solo edges are, by definition, an edge group
         for edge in _TraceLine.only_solos(edges):
@@ -743,33 +739,33 @@ class SingleTrace(AbstractTrace):
                 end_a = end_edges.pop()
                 edge_group = [end_a]
                 end_b: _TraceLine = None
-                latest_xy_idx = end_a.xy0_idx if 0 == end_a.joined_ends[0] else end_a.xy1_idx
+                latest_xy = end_a.xy0 if 0 == end_a.joined_ends[0] else end_a.xy1
 
                 # find the group inner edges
-                group_xy_idxs = end_a.joined_idxs
+                group_xy = end_a.joined_points
                 found_inner_edge = True
                 while found_inner_edge:
                     found_inner_edge = False
                     for edge in copy.copy(inner_edges):
-                        if latest_xy_idx in edge.xy_idxs:
+                        if latest_xy in edge.xy_points:
                             edge_group.append(edge)
-                            latest_xy_idx = edge.xy0_idx if edge.xy1_idx == latest_xy_idx else edge.xy1_idx
-                            group_xy_idxs += edge.xy_idxs
+                            latest_xy = edge.xy0 if edge.xy1 == latest_xy else edge.xy1
+                            group_xy += edge.xy_points
                             inner_edges.remove(edge)
                             found_inner_edge = True
                             break
 
                 # find the other end
                 for edge in end_edges:
-                    if latest_xy_idx in edge.xy_idxs:
+                    if latest_xy in edge.xy_points:
                         assert end_b is None
                         end_b = edge
-                        group_xy_idxs += edge.xy_idxs
+                        group_xy += edge.xy_points
                 end_edges.remove(end_b)
                 edge_group.append(end_b)
 
                 # add the group
-                assert len(set(group_xy_idxs)) == len(edge_group)
+                assert len(set(group_xy)) == len(edge_group)
                 edge_groups.append(edge_group)
 
                 # check if we've found all the edge groups
@@ -788,28 +784,27 @@ class SingleTrace(AbstractTrace):
         return edge_groups
 
     @classmethod
-    def _group_and_sort_edges(cls, xy_points: list[Point], edges: list[_TraceLine]) -> list[list[_TraceLine]]:
+    def _group_and_sort_edges(cls, edges: list[TraceLine]) -> list[list[TraceLine]]:
         """
         Group edges that constitute a single trace (there can be multiple traces per route+layer).
         """
-        edge_groups = cls._group_edges(xy_points, edges)
+        edge_groups = cls._group_edges(edges)
         cls._sort_edges_in_groups(edge_groups)
         cls._order_xy_points_in_edges(edge_groups)
         return edge_groups
 
     @classmethod
-    def _vias_at_branches(cls, xy_points: list[Point], edge_groups: list[list[_TraceLine]]) -> dict[Point, Via]:
+    def _vias_at_branches(cls, edge_groups: list[list[TraceLine]]) -> dict[Point, Via]:
         ret: dict[Point, Via] = {}
 
         for edge_group in edge_groups:
             for edge in edge_group:
                 if edge.is_branch:
                     if 0 in edge.joined_ends:
-                        pnt_idx = edge.xy1_idx
+                        pnt = edge.xy1
                     else:
                         assert 1 in edge.joined_ends
-                        pnt_idx = edge.xy0_idx
-                    pnt = xy_points[pnt_idx]
+                        pnt = edge.xy0
                     ret[pnt] = Via(pnt, "Branch", [edge.fline])
 
         return ret
@@ -846,19 +841,19 @@ class SingleTrace(AbstractTrace):
         layer_name = name_lines[0].v.split("LAYER ")[1].strip() if len(name_lines) > 0 else "TOP"
 
         # parse the lines for this route+layer
-        xy_points, edges, inner_vias = cls._parse_trace_lines(trace)
+        edges, inner_vias = cls._parse_trace_lines(trace)
 
         # group edges into traces
-        edge_groups = cls._group_and_sort_edges(xy_points, edges)
+        edge_groups = cls._group_and_sort_edges(edges)
 
         # add vias at branch points
-        branch_vias = cls._vias_at_branches(xy_points, edge_groups)
+        branch_vias = cls._vias_at_branches(edge_groups)
 
         ret: list[SingleTrace] = []
         for edge_group in edge_groups:
             source_lines = [e.fline for e in edge_group]
-            instance = cls(source_lines, layer_name, xy_points, edge_group, shape, bend_radius,
-                           inner_vias=inner_vias, branch_vias=branch_vias)
+            instance = cls(source_lines, route_name, layer_name, edge_group,
+                           shape, bend_radius, inner_vias=inner_vias, branch_vias=branch_vias)
             ret.append(instance)
 
         return ret, pre_trace + post_trace
@@ -878,11 +873,11 @@ class SingleTrace(AbstractTrace):
 
         # Recalculate the starting and ending segments depending on
         # if we should be adding through-holes for the traces.
-        if pins["a"] is not None:
-            segments[0] = LineSegment(pins["a"].location, segments[0].xy1)
+        if pins[0] is not None:
+            segments[0] = LineSegment(pins[0].location, segments[0].xy1)
 
-        if pins["b"] is not None:
-            segments[-1] = LineSegment(segments[-1].xy0, pins["b"].location)
+        if pins[1] is not None:
+            segments[-1] = LineSegment(segments[-1].xy0, pins[1].location)
 
         return tuple(segments)
 
@@ -900,7 +895,7 @@ class SingleTrace(AbstractTrace):
         ret = copy.copy(self.pins)
 
         # Recalculate the pin locations to be offset from the component through holes
-        for end in ["a", "b"]:
+        for end in [0, 1]:
             pin = self.pins[end]
             if pin is None:
                 continue
@@ -915,7 +910,7 @@ class SingleTrace(AbstractTrace):
                         break
                 return segment
 
-            if end == "a":
+            if end == 0:
                 segment = get_segment_at_dist(self.segments)
                 assert pin.location.distance(segment.xy0) < Pin.through_hole_diameter() + Pin.via_diameter()
                 adjusted_loc = segment.distance_along_line(dist, pin.location)

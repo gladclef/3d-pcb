@@ -8,58 +8,74 @@ from FileIO.Line import Line as FLine
 
 
 class LineSegment(Line):
-    def __init__(self, pnt0: Point, pnt1: Point, source_line: FLine = None):
-        l1 = Line.from_two_points(pnt0, pnt1)
+    def __init__(self, xy0: Point, xy1: Point, fline: FLine = None):
+        l1 = Line.from_two_points(xy0, xy1)
         super().__init__(l1.xy, l1.y_intercept, l1.x_intercept)
 
-        self.pnt0 = pnt0
-        self.pnt1 = pnt1
-        self.source_line = source_line
+        self._xy0 = xy0
+        self._xy1 = xy1
+        self.fline = fline
 
     @classmethod
     def from_vector(cls, x: float, y: float, y_intercept: float=None, x_intercept: float=None, length: float=1) -> "LineSegment":
         l0 = Line(x, y, y_intercept, x_intercept)
-        pnt0 = l0.xy0
-        pnt1 = l0.distance_along_line(length, pnt0)
-        cls(pnt0, pnt1)
+        xy0 = l0.xy0
+        xy1 = l0.distance_along_line(length, xy0)
+        cls(xy0, xy1)
 
     @classmethod
     def from_slope_intercept(cls, slope: float, y_intercept: float, length: float=1) -> "LineSegment":
         l0 = Line.from_slope_intercept(slope, y_intercept)
-        pnt0 = l0.xy0
-        pnt1 = l0.distance_along_line(length, pnt0)
-        return cls(pnt0, pnt1)
+        xy0 = l0.xy0
+        xy1 = l0.distance_along_line(length, xy0)
+        return cls(xy0, xy1)
     
     @classmethod
     def from_angle_point(cls, angle: float, point: Point, length: float=1) -> "LineSegment":
         l0 = Line.from_angle_point(angle, point)
-        pnt0 = l0.xy0
-        pnt1 = l0.distance_along_line(length, pnt0)
-        return cls(pnt0, pnt1)
+        xy0 = l0.xy0
+        xy1 = l0.distance_along_line(length, xy0)
+        return cls(xy0, xy1)
     
     @classmethod
-    def from_two_points(cls, pnt1: Point, pnt2: Point) -> "LineSegment":
-        cls(pnt1, pnt2)
+    def from_two_points(cls, xy1: Point, pnt2: Point) -> "LineSegment":
+        cls(xy1, pnt2)
+
+    @property
+    def xy0(self) -> Point:
+        return self._xy0
+    
+    @xy0.setter
+    def xy0(self, val: Point):
+        self._xy0 = val
+
+    @property
+    def xy1(self) -> Point:
+        return self._xy1
+    
+    @xy1.setter
+    def xy1(self, val: Point):
+        self._xy1 = val
 
     @property
     def x0(self) -> float:
         """ The x component of the start of this segment. """
-        return self.pnt0.x
+        return self.xy0.x
     
     @property
     def x1(self) -> float:
         """ The x component of the end of this segment. """
-        return self.pnt1.x
+        return self.xy1.x
     
     @property
     def y0(self) -> float:
         """ The y component of the start of this segment. """
-        return self.pnt0.y
+        return self.xy0.y
     
     @property
     def y1(self) -> float:
         """ The y component of the end of this segment. """
-        return self.pnt1.y
+        return self.xy1.y
 
     @property
     def rise(self) -> float:

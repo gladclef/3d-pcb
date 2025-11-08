@@ -1,19 +1,15 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
 
 import vtk
 
 from Geometry.Point import Point
 from Trace.AbstractVtkPointTracker import AbstractVtkPointTracker as PntInc
 from FileIO.Line import Line as FLine
-from Geometry.LineSegment import LineSegment
 from Geometry.Path import Path
 from Trace.PipeShape import PipeShape, DEFAULT_PIPE_SHAPE
+from Trace.TraceLine import TraceLine
 from tool.globals import board_parameters as g
 from tool.units import *
-
-if TYPE_CHECKING:
-    from Trace.SingleTrace import _TraceLine
 
 class AbstractTrace(Path, PntInc, ABC):
     """
@@ -21,10 +17,9 @@ class AbstractTrace(Path, PntInc, ABC):
     """
     def __init__(self,
                  source_lines: list[FLine],
-                 xy_points: list[Point],
-                 segments: list["_TraceLine"] | list[LineSegment],
+                 segments: list[TraceLine],
                  shape: PipeShape=None):
-        Path.__init__(self, source_lines, xy_points, segments)
+        Path.__init__(self, source_lines, segments)
 
         # set some defaults
         if shape is None:
