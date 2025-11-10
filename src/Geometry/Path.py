@@ -25,12 +25,14 @@ class Path:
         self.source_lines = source_lines
         self.segments = segments
     
+    def _check_structure_is_valid(self):
+        assert all([self.segments[i].xy1 == self.segments[i+1].xy0 for i in range(len(self.segments)-1)]), "Segments not in order!"
+
     @property
     def xy_points(self) -> list[Point]:
         """
         Returns the list of XY points that define this path.
         """
-        assert all([self.segments[i].xy1 == self.segments[i+1].xy0 for i in range(len(self.segments)-1)])
         return [s.xy0 for s in self.segments] + [self.segments[-1].xy1]
 
     @property
@@ -87,6 +89,8 @@ class Path:
         self.segments.insert(old_index+1, prev_segment)
         self.segments.insert(old_index+2, next_segment)
 
+        self._check_structure_is_valid()
+
         return prev_segment, next_segment
     
     def append_xypnt(self, new_xy_pnt: Point, at_start: bool, fline: FLine = None) -> LineSegment:
@@ -117,6 +121,8 @@ class Path:
             self.segments.insert(0, new_segment)
         else:
             self.segments.append(new_segment)
+
+        self._check_structure_is_valid()
 
         return new_segment
 
@@ -169,6 +175,8 @@ class Path:
             # nothing to do, no new segments to build
             pass
 
+        self._check_structure_is_valid()
+
         return old_segments, new_segments
 
     def change_segment_points(self, segment: LineSegment, new_xy0: Point = None, new_xy1: Point = None) -> LineSegment:
@@ -207,4 +215,5 @@ class Path:
         if new_xy0 is not None:
             self.remove_xypnt(segment.xy0)
         else:
-            self.remove_xypnt(segment.xy1)
+            self.remove_xypnt(segment.xy1)                
+        self._check_structure_is_valid()
