@@ -28,7 +28,8 @@ class TraceLine(LineSegment):
     
     @is_end.setter
     def is_end(self, val: bool):
-        assert (not self._is_solo) and (not self._is_inner_edge)
+        if val:
+            assert (not self._is_solo) and (not self._is_inner_edge)
         self._is_end = val
     
     @property
@@ -37,7 +38,8 @@ class TraceLine(LineSegment):
     
     @is_solo.setter
     def is_solo(self, val: bool):
-        assert (not self._is_end) and (not self._is_inner_edge)
+        if val:
+            assert (not self._is_end) and (not self._is_inner_edge)
         self._is_solo = val
 
     @property
@@ -46,7 +48,8 @@ class TraceLine(LineSegment):
     
     @is_inner_edge.setter
     def is_inner_edge(self, val: bool):
-        assert (not self._is_solo) and (not self._is_solo)
+        if val:
+            assert (not self._is_solo) and (not self._is_solo)
         self._is_inner_edge = val
 
     @property
@@ -90,12 +93,13 @@ class TraceLine(LineSegment):
     def not_solo(cls, trace_lines: list["TraceLine"]) -> list["TraceLine"]:
         return list(filter(lambda tl: not tl.is_solo, trace_lines))
     
-    def copy_properties(self, other: "TraceLine"):
-        self.is_end = other.is_end
-        self.is_solo = other.is_solo
-        self.is_inner_edge = other.is_inner_edge
-        self.unjoined_ends = other.joined_ends
-        self.is_branch = other.is_branch
+    def copy_properties(self, copy_from: "TraceLine"):
+        self.is_end, self.is_solo, self.is_inner_edge = False, False, False
+        self.is_end = copy_from.is_end
+        self.is_solo = copy_from.is_solo
+        self.is_inner_edge = copy_from.is_inner_edge
+        self.joined_ends = copy_from.unjoined_ends
+        self.is_branch = copy_from.is_branch
 
     def reversed(self) -> "TraceLine":
         ret = TraceLine(self.xy1, self.xy0, self.fline)
