@@ -1,6 +1,7 @@
 import copy
 
 from FileIO.Line import Line as FLine
+from Geometry.Line import Line
 from Geometry.LineSegment import LineSegment
 from Geometry.Point import Point
 
@@ -58,6 +59,16 @@ class Path:
         else:
             return [matching_segments[1], matching_segments[0]]
     
+    def get_previous_segment(self, segment: LineSegment) -> LineSegment | None:
+        ret = None if segment == self.segments[0] else self.segments[self.segments.index(segment)-1]
+        assert (ret is None) or (ret.xy1 == segment.xy0)
+        return ret
+    
+    def get_next_segment(self, segment: LineSegment) -> LineSegment | None:
+        ret = None if segment == self.segments[-1] else self.segments[self.segments.index(segment)+1]
+        assert (ret is None) or (ret.xy0 == segment.xy1)
+        return ret
+
     def insert_xypnt(self, new_xy_pnt: Point, old_segment: LineSegment) -> tuple[LineSegment, LineSegment]:
         """ Inserts a new xy point between the two points given by old_segment.
 
@@ -178,42 +189,153 @@ class Path:
         self._check_structure_is_valid()
 
         return old_segments, new_segments
+    
+    def remove_segment(
+            self,
+            segment: LineSegment,
+            modify_adjoining_segments = True,
+            max_distance_from_center = 2.0
+        ) -> tuple[LineSegment|None, LineSegment|None]:
+        """ Removes the given segment from this path.
 
-    def change_segment_points(self, segment: LineSegment, new_xy0: Point = None, new_xy1: Point = None) -> LineSegment:
+        If modify_adjoining_segments is False, then the removal is done with a
+        simple deletion of the segment.
+
+        If modify_adjoining_segments is True, then the segments before and
+        after the given segment are modified to extend to the intersection
+        points of their respective lines.
+
+        Example of before removal, removal with modify_adjoining_segments == False,
+        and removal with modify_adjoining_segments == True:
+
+                Before        No Modification     Modification
+            A------------B    A                  A-------------AD
+                         |      \                              /
+                         C        \                           /
+                        /           \                        / 
+                       /              \                     /  
+                      D                 D                  D   
+
+        Parameters
+        ----------
+        segment : LineSegment
+            The line segment to be removed.
+        modify_adjoining_segments : bool, optional
+            True to adjust the previous and next segments, by default True
+        max_distance_from_center : float, optional
+            The maximum distance from the center of segment that the
+            intersection point of the previous and next segments can be, in the
+            case that modify_adjoining_segments is True.
+        
+        Returns
+        -------
+        tuple[LineSegment|None, LineSegment|None]:
+            The previous and next line segments to the given segment.
+        """
         assert segment in self.segments
-        new_pnt = new_xy0 or new_xy1
+
+        # get the previous and next segments
+        prev_segment = self.get_previous_segment(segment)
+        next_segment = self.get_next_segment(segment)
+
+        # simple case, modify_adjoining_segments == False
+        if modify_adjoining_segments is False:
+            for pnt in segment.xy_points:
+                self.remove_xypnt(pnt)
+            self._check_structure_is_valid()
+            return prev_segment, next_segment
+        
+        # simple case, segment is at the beggining or end
+        if segment == self.segments[0]:
+            assert prev_segment is None
+            self.remove_xypnt(segment.xy1)
+            self._check_structure_is_valid()
+            return prev_segment, next_segment
+        elif segment == self.segments[-1]:
+            assert next_segment is None
+            self.remove_xypnt(segment.xy0)
+            self._check_structure_is_valid()
+            return prev_segment, next_segment
+
+        # start by finding the previous and next segments
+        segment_idx = self.segments.index(segment)
+        prev_segment = self.segments[segment_idx-1]
+        next_segment = self.segments[segment_idx+1]
+        assert prev_segment.xy1 == segment.xy0
+        assert next_segment.xy0 == segment.xy1
+
+        # check for lines that are parallel
+        center_pnt = segment.distance_along_line(segment.length, segment.xy0)
+        if prev_segment.is_parallel_to(next_segment):
+            self.segments.remove(segment)
+            new_pnt = prev_segment.distance_along_line(max_distance_from_center, center_pnt)
+            prev_segment.xy1 = new_pnt
+            next_segment.xy0 = new_pnt
+            self._check_structure_is_valid()
+            return prev_segment, next_segment
+
+        # find the segments intersection point
+        prev_line = Line.from_two_points(prev_segment.xy0, prev_segment.xy1)
+        next_line = Line.from_two_points(next_segment.xy0, next_segment.xy1)
+        intersection_pnt = prev_line.intersection(next_line)
+        if intersection_pnt.distance(center_pnt) <= max_distance_from_center:
+            self.segments.remove(segment)
+            prev_segment.xy1 = intersection_pnt
+            next_segment.xy0 = intersection_pnt
+            self._check_structure_is_valid()
+            return prev_segment, next_segment
+        else:
+            center_to_intersection = Line.from_two_points(center_pnt, intersection_pnt)
+            closest_pnt = center_to_intersection.distance_along_line(max_distance_from_center, center_pnt)
+            self.segments.remove(segment)
+            prev_segment.xy1 = closest_pnt
+            next_segment.xy0 = closest_pnt
+            self._check_structure_is_valid()
+            return prev_segment, next_segment
+
+    def change_segment_points(
+            self,
+            segment: LineSegment,
+            new_xy0: Point = None,
+            new_xy1: Point = None
+        ) -> tuple[LineSegment|None, LineSegment|None]:
+        """ Moves the points for the given segment and related components to
+        the new locations.
+
+        Parameters
+        ----------
+        segment : LineSegment
+            The segment to be moved.
+        new_xy0 : Point, optional
+            The new point to move the start of the segment to, or None. By default None
+        new_xy1 : Point, optional
+            The new point to move the end of the segment to, or None. By default None
+
+        Returns
+        -------
+        tuple[LineSegment|None, LineSegment|None]
+            The previous and next segments that are next to the given segment.
+        """
+        assert segment in self.segments
 
         # simple case, no changes
         if new_xy0 is None and new_xy1 is None:
-            return segment
+            return
         
-        # both points change
-        if new_xy0 is not None and new_xy1 is not None:
-            segment = self.change_segment_points(segment, new_xy0, None)
-            return self.change_segment_points(segment, None, new_xy1)
-
-        # special case, only one segment to this path
-        if len(self.segments) == 1:
-            prev_seg, next_seg = self.insert_xypnt(new_pnt)
-            if new_xy0 is not None:
-                self.remove_xypnt(prev_seg.xy0)
-                return next_seg
-            if new_xy1 is not None:
-                self.remove_xypnt(next_seg.xy1)
-                return prev_seg
+        # get the previous and next segments
+        prev_segment = None if segment == self.segments[0] else self.segments[self.segments.index(segment)-1]
+        next_segment = None if segment == self.segments[-1] else self.segments[self.segments.index(segment)+1]
         
-        # special case, this segment is at one of the ends
-        if (segment == self.segments[0] and new_xy0 is not None) or (segment == self.segments[-1] and new_xy1 is not None):
-            at_start = segment == self.segments[0]
-            fline = segment.source_line
-            new_segment = self.append_xypnt(new_pnt, at_start, fline)
-            self.remove_xypnt(segment.xy1 if at_start else segment.xy0)
-            return new_segment
-        
-        # standard_case, this segment is in the middle
-        prev_seg, next_seg = self.insert_xypnt(new_pnt, segment)
+        # move the segment points
         if new_xy0 is not None:
-            self.remove_xypnt(segment.xy0)
+            segment.xy0 = new_xy0
+            if prev_segment is not None:
+                prev_segment.xy1 = new_xy0
         else:
-            self.remove_xypnt(segment.xy1)                
+            segment.xy1 = new_xy1
+            if next_segment is not None:
+                next_segment.xy0 = new_xy1
+                
         self._check_structure_is_valid()
+
+        return prev_segment, next_segment

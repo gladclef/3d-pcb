@@ -513,6 +513,43 @@ class SingleTrace(AbstractTrace):
         if xy_pnt in self.xypnt_trace_corners:
             trace_corner = self.xypnt_trace_corners[xy_pnt]
             del self.xypnt_trace_corners[xy_pnt]
+    def remove_segment(
+            self,
+            segment: TraceLine,
+            modify_adjoining_segments = True,
+            max_distance_from_center = 2.0
+        ) -> tuple[bool, tuple[TraceLine, TraceLine]]:
+        # Don't remove this segment if it joins one of the pins
+        if segment == self.segments[0]:
+            if 0 in self.pins:
+                if self.pins[0].location == segment.xy0:
+                    return False, None, None
+        if segment == self.segments[-1]:
+            if 1 in self.pins:
+                if self.pins[1].location == segment.xy1:
+                    return False, None, None
+
+        # Remove trace corners
+        self._unset_xypnt(segment.xy0)
+        self._unset_xypnt(segment.xy1)
+        
+        prev_segment, next_segment = super().remove_segment(segment, modify_adjoining_segments, max_distance_from_center)
+
+        # Deal with moving inner vias and branch vias
+        for vias in self.inner_vias, self.branch_vias:
+            for xy_pnt in segment.xy_points:
+                if xy_pnt in vias:
+                    via = vias[xy_pnt]
+                    del vias[xy_pnt]
+
+                    new_pnt = prev_segment.xy1
+                    if new_pnt not in vias:
+                        # move the via
+                        vias[new_pnt] = via
+                        via.location = new_pnt
+                    else:
+                        # just discard the via
+                        pass
 
         self._check_structure_is_valid()
         

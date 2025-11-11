@@ -30,6 +30,12 @@ class AbstractTrace(Path, PntInc, ABC):
 
     def segments_at_xypnt(self, pnt: Point) -> list[TraceLine]:
         return super().segments_at_xypnt(pnt)
+    
+    def get_previous_segment(self, segment: TraceLine) -> TraceLine | None:
+        return super().get_previous_segment(segment)
+    
+    def get_next_segment(self, segment: TraceLine) -> TraceLine | None:
+        return super().get_next_segment(segment)
 
     def insert_xypnt(self, new_xy_pnt: Point, old_segment: TraceLine) -> tuple[TraceLine, TraceLine]:
         prev_segment, next_segment = super().insert_xypnt(new_xy_pnt, old_segment)
@@ -66,6 +72,14 @@ class AbstractTrace(Path, PntInc, ABC):
             new_new_segments.append(new_new_segment)
         
         return old_segments, new_segments
+    
+    def remove_segment(
+            self,
+            segment: TraceLine,
+            modify_adjoining_segments = True,
+            max_distance_from_center = 2.0
+        ) -> tuple[TraceLine, TraceLine]:
+        return super().remove_segment(segment, modify_adjoining_segments, max_distance_from_center)
 
     @abstractmethod
     def to_vtk(self) -> vtk.vtkPolyData:
