@@ -205,18 +205,18 @@ class SingleTrace(AbstractTrace):
                     # find the segment at distance r from the center of the via
                     segs_length = 0
                     segments_to_remove: list[LineSegment] = []
-                for s in segments_out2in:
-                    segs_length += s.length
-                    if segs_length >= r:
-                        segment = s
-                        break
-                    else:
-                        segments_to_remove.append(s)
-                assert segment.xy0 in self.xy_points
-                assert segment.xy1 in self.xy_points
-                assert segment in self.segments
-                
-                # remove segments between the center of the via and the found segment
+                    for s in segments_out2in:
+                        segs_length += s.length
+                        if segs_length >= r:
+                            segment = s
+                            break
+                        else:
+                            segments_to_remove.append(s)
+                    assert segment.xy0 in self.xy_points
+                    assert segment.xy1 in self.xy_points
+                    assert segment in self.segments
+                    
+                    # remove segments between the center of the via and the found segment
                     if len(segments_to_remove) > 0:
                         for s in segments_to_remove:
                             if is_via_at_xy0:
@@ -429,7 +429,7 @@ class SingleTrace(AbstractTrace):
                 continue
 
             self.pins[end] = closest_pin
-
+        
         # adjust the segments so that they end at the new component pad locations
         self._enable_check_structure_is_valid = False
         if 0 in self.pins:
@@ -490,29 +490,45 @@ class SingleTrace(AbstractTrace):
         for segment_points in self._xypnt_vtk_verticies.values():
             segment_points.inc_vtk_indicies(start, cnt)
 
-    def remove_xypnt(self, xy_pnt: Point) -> tuple[tuple[list[LineSegment], TraceCorner], list[LineSegment]]:
-        """ Removes the given xy_pnt.
-
-        Parameters
-        ----------
-        xy_pnt : Point
-            The point to be removed.
-
-        Returns
-        -------
-        old_segments_and_corner: tuple[tuple[list[LineSegment], TraceCorner]
-            The old segments and trace corner that were removed.
-        new_segments: list[LineSegment]]
-            The new segments that were added.
-        """
-        # deal with the segments
-        old_segments, new_segments = Path.remove_xypnt(self, xy_pnt)
-
-        # remove the old trace corner, if any
-        trace_corner = None
+    def _unset_xypnt(self, xy_pnt: Point):
         if xy_pnt in self.xypnt_trace_corners:
-            trace_corner = self.xypnt_trace_corners[xy_pnt]
             del self.xypnt_trace_corners[xy_pnt]
+
+    def remove_xypnt(self, xy_pnt: Point) -> tuple[bool, tuple[list[LineSegment], list[LineSegment]]]:
+        # Don't remove this point if it's the same as a pin location
+        if (0 in self.pins) and (self.pins[0].location == xy_pnt):
+            return False, ([], [])
+
+        # Remove trace corners
+        self._unset_xypnt(xy_pnt)
+        
+        # Deal with moving inner vias and branch vias
+        adjoining_pnt = None
+        def get_adjoining_point():
+            segment = list(filter(lambda s: s is not None, self.segments_at_xypnt(xy_pnt)))[0]
+            if segment.xy0 == xy_pnt:
+                return segment.xy1
+            else:
+                assert segment.xy1 == xy_pnt
+                return segment.xy0
+        for vias in self.inner_vias, self.branch_vias:
+            if xy_pnt in vias:
+                via = vias[xy_pnt]
+                del vias[xy_pnt]
+
+                adjoining_pnt = adjoining_pnt or get_adjoining_point()
+                if adjoining_pnt not in vias:
+                    # move the via
+                    vias[adjoining_pnt] = via
+                    via.location = adjoining_pnt
+                else:
+                    # just discard the via
+                    pass
+
+        old_segments, new_segments = super().remove_xypnt(xy_pnt)
+        self._check_structure_is_valid()
+        return True, (old_segments, new_segments)
+
     def remove_segment(
             self,
             segment: TraceLine,
@@ -552,13 +568,42 @@ class SingleTrace(AbstractTrace):
                         pass
 
         self._check_structure_is_valid()
-        
-        return (old_segments, trace_corner), new_segments
 
-    def change_segment_points(self, segment: LineSegment, new_xy0: Point = None, new_xy1: Point = None) -> LineSegment:
-        new_segment = super().change_segment_points(segment, new_xy0, new_xy1)
+        return True, (prev_segment, next_segment)
 
-        for old_pnt, new_pnt in [(segment.xy0, new_xy0), (segment.xy1, new_xy1)]:
+    def change_segment_points(
+            self,
+            segment: LineSegment,
+            new_xy0: Point = None,
+            new_xy1: Point = None
+        ) -> tuple[tuple[bool, bool], tuple[LineSegment|None, LineSegment|None]]:
+        original_pnts = segment.xy_points
+
+        # If the pins are set then don't change these locations
+        success_val_0, success_val_1 = True, True
+        if new_xy0 is not None:
+            if segment == self.segments[0]:
+                if 0 in self.pins:
+                    if self.pins[0].location != new_xy0:
+                        new_xy0 = None
+                        success_val_0 = False
+        if new_xy1 is not None:
+            if segment == self.segments[-1]:
+                if 1 in self.pins:
+                    if self.pins[1].location != new_xy0:
+                        new_xy1 = None
+                        success_val_1 = False
+
+        # update the locations
+        prev_segment, next_segment = super().change_segment_points(segment, new_xy0, new_xy1)
+
+        # Remove trace corners
+        for pnt in original_pnts:
+            if pnt in self.xypnt_trace_corners:
+                del self.xypnt_trace_corners[pnt]
+
+        # Deal with moving inner vias and branch vias
+        for old_pnt, new_pnt in [(original_pnts[0], new_xy0), (original_pnts[1], new_xy1)]:
             if new_pnt is None:
                 continue
 
@@ -573,15 +618,11 @@ class SingleTrace(AbstractTrace):
                     via = self.branch_vias[old_pnt]
                     self.branch_vias[new_pnt] = Via(new_pnt, via.name, via.source_lines)
                 del self.branch_vias[old_pnt]
-
-            for end in list(self.pins.keys()):
-                pin = self.pins[end]
-                self.pins[end] = Pin(pin.parent, pin.pin_description, pin.pad_name, new_pnt, pin.layer, pin.is_pad)
             
             if old_pnt in self.xypnt_trace_corners:
                 del self.xypnt_trace_corners[old_pnt]
         
-        print(f"change_segment_points() from\n\t[{segment.xy0},{segment.xy1}] to\n\t[{new_segment.xy0},{new_segment.xy1}]")
+        print(f"change_segment_points() from\n\t{original_pnts} to\n\t[{segment.xy0},{segment.xy1}]")
         self._check_structure_is_valid()
         return (success_val_0, success_val_1), (prev_segment, next_segment)
 
@@ -597,8 +638,8 @@ class SingleTrace(AbstractTrace):
                         print(f"Found short trace segment in lines {min(linenos)}-{max(linenos)}")
 
                         # replace this segment with the intersection of the previous and next segments
-                        prev_segments = list(filter(lambda s: s != segment, self.segments_at_xypnt(segment.xy0)))
-                        next_segments = list(filter(lambda s: s != segment, self.segments_at_xypnt(segment.xy1)))
+                        prev_segment = self.get_previous_segment(segment)
+                        next_segment = self.get_next_segment(segment)
                         if prev_segment is None and next_segment is None:
                             # only one segment to this trace, do nothing
                             break
@@ -644,7 +685,6 @@ class SingleTrace(AbstractTrace):
             if routes[0].v.strip() == "$ROUTES" and routes[1].v.strip() == "$ENDROUTES":
                 return pre_routes, [], post_routes, None
         assert routes[-1].v.strip() in ["ROUTE", "$ENDROUTES"]
-        assert all([routes[i].lineno != routes[i+1].lineno for i in range(len(routes)-1)])
 
         # break up on route
         pre_route, route, post_route = route_helper.get_next_region(routes)
@@ -663,7 +703,6 @@ class SingleTrace(AbstractTrace):
         assert route[-1].v.strip().startswith("ROUTE") or route[-1].v.strip() == "$ENDROUTES"
         route_name = re.match(r"ROUTE[ \t]*(.*)", route[0].v.strip()).groups()[0]
         post_route.insert(0, route.pop())
-        assert all([route[i].lineno != route[i+1].lineno for i in range(len(route)-1)])
 
         # break up on layers
         pre_layer, layer, post_layer = layer_helper.get_next_region(route[1:])
@@ -678,7 +717,6 @@ class SingleTrace(AbstractTrace):
             # check if there are any more routes
             assert all([l.v.strip().startswith("TRACK") for l in pre_layer])
             assert all([l.v.strip().startswith("TRACK") for l in post_layer])
-            # pre_trace, trace, post_trace = cls.get_lines_for_next_trace(pre_routes + pre_route + pre_layer + post_layer + post_route + post_routes)
             pre_trace, trace, post_trace, route_name = cls.get_lines_for_next_trace(pre_routes + pre_route + post_route + post_routes)
             if len(trace) != 0:
                 return pre_trace, trace, post_trace, route_name
@@ -690,28 +728,31 @@ class SingleTrace(AbstractTrace):
             pre_layer.insert(0, route[0])
             if layer_helper.end_matches(layer[-1]):
                 post_layer.insert(0, layer.pop())
+        
+        # add all via lines
+        for line in layer:
+            if line.v.startswith("VIA "):
+                if line not in layer:
+                    layer.append(line)
 
-        pre_lines, target_lines, post_lines = pre_routes + pre_route + pre_layer, layer, post_layer + post_route + post_routes
-
-        all_linenos = [l.lineno for l in pre_lines+target_lines+post_lines]
-        assert all([all_linenos.count(ln) == 1 for ln in all_linenos])
-
+        pre_lines = pre_routes + pre_route + pre_layer
+        target_lines = layer
+        post_lines = post_layer + post_route + post_routes
         return pre_lines, target_lines, post_lines, route_name
     
     @classmethod
     def _parse_trace_lines(cls, trace: list[FLine]) -> tuple[list[TraceLine], dict[Point, Via]]:
         # parse the lines for this route+layer
         segment_lines = list(filter(lambda l: l.v.startswith("LINE "), trace))
-        xy_points_orig: list[Point] = []
+        xy_points: set[Point] = set()
         edges: list[TraceLine] = []
         for segment_line in segment_lines:
 
             x0, y0, x1, y1 = tuple(map(float, segment_line.v.strip()[5:].split(" ")))
+            x0, y0, x1, y1 = in2mm(x0), in2mm(y0), in2mm(x1), in2mm(y1)
             point0, point1 = Point(x0, y0), Point(x1, y1)
-            if point0 not in xy_points_orig:
-                xy_points_orig.append(point0)
-            if point1 not in xy_points_orig:
-                xy_points_orig.append(point1)
+            xy_points.add(point0)
+            xy_points.add(point1)
 
             edges.append(TraceLine(segment_line, point0, point1))
 
@@ -720,8 +761,9 @@ class SingleTrace(AbstractTrace):
         inner_vias: dict[Point, Via] = {}
         while len(vias) > 0:
             for via in vias:
-                inner_vias[via.location] = via
-                print(f"Found inner via for single trace at line {via.source_lines[0].lineno}")
+                if via.location in xy_points:
+                    inner_vias[via.location] = via
+                    print(f"Found inner via for single trace at line {via.source_lines[0].lineno}")
             vias, l = Via.from_cad_file(l)
 
         return edges, inner_vias
@@ -735,16 +777,16 @@ class SingleTrace(AbstractTrace):
                 continue
             assert len(TraceLine.only_solos(edge_group)) == 0
 
-            end_a, end_b = edge_group[0], edge_group[-1]
-            group_inner_edges = edge_group[1:-1]
-            new_edge_group = [end_a]
-            while len(group_inner_edges) > 0:
-                for edge in copy.copy(group_inner_edges):
-                    if (edge.xy0 in new_edge_group[-1].xy_points) or (edge.xy1 in new_edge_group[-1].xy_points):
-                        new_edge_group.append(edge)
-                        group_inner_edges.remove(edge)
+            line_a, line_b = edge_group[0], edge_group[-1]
+            group_inner_lines = edge_group[1:-1]
+            new_edge_group = [line_a]
+            while len(group_inner_lines) > 0:
+                for line in copy.copy(group_inner_lines):
+                    if (line.xy0 in new_edge_group[-1].xy_points) or (line.xy1 in new_edge_group[-1].xy_points):
+                        new_edge_group.append(line)
+                        group_inner_lines.remove(line)
                         break
-            new_edge_group.append(end_b)
+            new_edge_group.append(line_b)
             edge_groups[edge_group_idx] = new_edge_group
 
     @classmethod
@@ -754,15 +796,17 @@ class SingleTrace(AbstractTrace):
             if len(edge_group) == 1:
                 continue
 
-            for edge_idx, edge in enumerate(edge_group[:-1]):
-                next_edge = edge_group[edge_idx]
-                if edge.xy0 in next_edge.xy_points:
-                    edge.xy0, edge.xy1 = edge.xy1, edge.xy0
+            for line_idx, line in enumerate(edge_group[:-1]):
+                next_line = edge_group[line_idx+1]
+                if line.xy0 in next_line.xy_points:
+                    assert line.xy1 not in next_line.xy_points, f"Two lines share the same points:\n\t{line.fline}\n\t{next_line.fline}"
+                    line.xy0, line.xy1 = line.xy1, line.xy0
 
             # orient the last edge
             end_b = edge_group[-1]
-            prev_edge = edge_group[-2]
-            if end_b.xy1 in prev_edge.xy_points:
+            prev_line = edge_group[-2]
+            if end_b.xy1 in prev_line.xy_points:
+                assert end_b.xy0 not in prev_line.xy_points
                 end_b.xy0, end_b.xy1 = end_b.xy1, end_b.xy0
 
             assert all([edge_group[i].xy1 == edge_group[i+1].xy0 for i in range(len(edge_group)-1)])
@@ -950,18 +994,22 @@ class SingleTrace(AbstractTrace):
         return edge_groups
 
     @classmethod
-    def _vias_at_branches(cls, edge_groups: list[list[TraceLine]]) -> dict[Point, Via]:
-        ret: dict[Point, Via] = {}
+    def _vias_at_branches(cls, edge_groups: list[list[TraceLine]]) -> list[dict[Point, Via]]:
+        ret: list[dict[Point, Via]] = []
 
         for edge_group in edge_groups:
+            group_vias = {}
+            ret.append(group_vias)
+
             for edge in edge_group:
                 if edge.is_branch:
                     if 0 in edge.joined_ends:
                         pnt = edge.xy1
-                    else:
-                        assert 1 in edge.joined_ends
+                    elif 1 in edge.joined_ends:
                         pnt = edge.xy0
-                    ret[pnt] = Via(pnt, "Branch", [edge.fline])
+                    else:
+                        raise RuntimeError(f"Unexpected value in joined_ends ({edge.joined_ends=})")
+                    group_vias[pnt] = Via(pnt, "Branch", [edge.fline])
 
         return ret
 
@@ -1006,10 +1054,10 @@ class SingleTrace(AbstractTrace):
         branch_vias = cls._vias_at_branches(edge_groups)
 
         ret: list[SingleTrace] = []
-        for edge_group in edge_groups:
+        for edge_group, group_branch_vias in zip(edge_groups, branch_vias):
             source_lines = [e.fline for e in edge_group]
             instance = cls(source_lines, route_name, layer_name, edge_group,
-                           shape, bend_radius, inner_vias=inner_vias, branch_vias=branch_vias)
+                           shape, bend_radius, inner_vias=inner_vias, branch_vias=group_branch_vias)
             ret.append(instance)
 
         return ret, pre_trace + post_trace

@@ -317,14 +317,14 @@ class Path:
             The previous and next segments that are next to the given segment.
         """
         assert segment in self.segments
-
-        # simple case, no changes
-        if new_xy0 is None and new_xy1 is None:
-            return
         
         # get the previous and next segments
         prev_segment = None if segment == self.segments[0] else self.segments[self.segments.index(segment)-1]
         next_segment = None if segment == self.segments[-1] else self.segments[self.segments.index(segment)+1]
+
+        # simple case, no changes
+        if new_xy0 is None and new_xy1 is None:
+            return prev_segment, next_segment
         
         # move the segment points
         if new_xy0 is not None:
