@@ -83,7 +83,7 @@ class SingleTrace(AbstractTrace):
         super().__init__(source_lines, segments, shape)
 
         # set some defaults
-        self._enable_check_structure_is_valid = False
+        self._enable_stcheck_structure_is_valid = False
         if bend_radius is None:
             bend_radius = g.TRACE_CORNER_RADIUS
 
@@ -111,11 +111,11 @@ class SingleTrace(AbstractTrace):
         if not allow_overlap:
             self.check_segments_overlap()
 
-        self._enable_check_structure_is_valid = True
-        self._check_structure_is_valid()
+        self._enable_stcheck_structure_is_valid = True
+        self._stcheck_structure_is_valid()
    
-    def _check_structure_is_valid(self):
-        if not self._enable_check_structure_is_valid:
+    def _stcheck_structure_is_valid(self):
+        if not self._enable_stcheck_structure_is_valid:
             return
         super()._check_structure_is_valid()
         assert (0 not in self.pins) or (self.pins[0].location == self.segments[0].xy0), "Pin0 location does not match segment0 location!"
@@ -126,6 +126,7 @@ class SingleTrace(AbstractTrace):
         assert all([pnt in self.xy_points for pnt in self.branch_vias.keys()]), "Branch via not in self.xy_points!"
         assert all([pnt == self.inner_vias[pnt].location for pnt in self.inner_vias.keys()]), "Inner via has a misconfigured location!"
         assert all([pnt == self.branch_vias[pnt].location for pnt in self.branch_vias.keys()]), "Branch via has a misconfigured location!"
+        assert all([isinstance(s, TraceLine) for s in self.segments])
 
     def adjust_ends_for_conductive_filament(self):
         """
@@ -395,6 +396,9 @@ class SingleTrace(AbstractTrace):
         components : list[Component]
             List of components to search for closest through-hole pins.
         """
+        # sanity check
+        assert len(self.pins) == 0
+
         # get the ends of the first and last segments
         xy_locs = { 0: self.segments[0].xy0, 1: self.segments[-1].xy1 }
 
@@ -431,16 +435,16 @@ class SingleTrace(AbstractTrace):
             self.pins[end] = closest_pin
         
         # adjust the segments so that they end at the new component pad locations
-        self._enable_check_structure_is_valid = False
+        self._enable_stcheck_structure_is_valid = False
         if 0 in self.pins:
-            (s0, s1), (ps, ns) = self.change_segment_points(self.segments[0], self.pins[0].location, None)
+            (s0, s1), (ps, ns) = self.change_segment_points(self.segments[0], self.pins[0].location, None, force=True)
             assert s0 and s1
         if 1 in self.pins:
-            (s0, s1), (ps, ns) = self.change_segment_points(self.segments[-1], None, self.pins[1].location)
+            (s0, s1), (ps, ns) = self.change_segment_points(self.segments[-1], None, self.pins[1].location, force=True)
             assert s0 and s1
-        self._enable_check_structure_is_valid = True
+        self._enable_stcheck_structure_is_valid = True
         
-        self._check_structure_is_valid()
+        self._stcheck_structure_is_valid()
 
     def segment_to_vtk(self, polydata: vtk.vtkPolyData, segment_idx: int, segment: LineSegment):
         """
@@ -526,7 +530,7 @@ class SingleTrace(AbstractTrace):
                     pass
 
         old_segments, new_segments = super().remove_xypnt(xy_pnt)
-        self._check_structure_is_valid()
+        self._stcheck_structure_is_valid()
         return True, (old_segments, new_segments)
 
     def remove_segment(
@@ -567,7 +571,7 @@ class SingleTrace(AbstractTrace):
                         # just discard the via
                         pass
 
-        self._check_structure_is_valid()
+        self._stcheck_structure_is_valid()
 
         return True, (prev_segment, next_segment)
 
@@ -575,7 +579,8 @@ class SingleTrace(AbstractTrace):
             self,
             segment: LineSegment,
             new_xy0: Point = None,
-            new_xy1: Point = None
+            new_xy1: Point = None,
+            force = False
         ) -> tuple[tuple[bool, bool], tuple[LineSegment|None, LineSegment|None]]:
         """ Moves the points for the given segment and related components to
         the new locations.
@@ -588,6 +593,10 @@ class SingleTrace(AbstractTrace):
             The new point to move the start of the segment to, or None. By default None
         new_xy1 : Point, optional
             The new point to move the end of the segment to, or None. By default None
+        force : bool, optional
+            True to force the new point to be applied, regardless of if it is
+            the end pin point. If True then it is assumed that the calling code
+            will manage the end pins. By default False.
 
         Returns
         -------
@@ -600,18 +609,19 @@ class SingleTrace(AbstractTrace):
 
         # If the pins are set then don't change these locations
         success_val_0, success_val_1 = True, True
-        if new_xy0 is not None:
-            if segment == self.segments[0]:
-                if 0 in self.pins:
-                    if self.pins[0].location != new_xy0:
-                        new_xy0 = None
-                        success_val_0 = False
-        if new_xy1 is not None:
-            if segment == self.segments[-1]:
-                if 1 in self.pins:
-                    if self.pins[1].location != new_xy0:
-                        new_xy1 = None
-                        success_val_1 = False
+        if not force:
+            if new_xy0 is not None:
+                if segment == self.segments[0]:
+                    if 0 in self.pins:
+                        if self.pins[0].location != new_xy0:
+                            new_xy0 = None
+                            success_val_0 = False
+            if new_xy1 is not None:
+                if segment == self.segments[-1]:
+                    if 1 in self.pins:
+                        if self.pins[1].location != new_xy0:
+                            new_xy1 = None
+                            success_val_1 = False
 
         # update the locations
         prev_segment, next_segment = super().change_segment_points(segment, new_xy0, new_xy1)
@@ -641,8 +651,8 @@ class SingleTrace(AbstractTrace):
             if old_pnt in self.xypnt_trace_corners:
                 del self.xypnt_trace_corners[old_pnt]
         
-        print(f"change_segment_points() from\n\t{original_pnts} to\n\t[{segment.xy0},{segment.xy1}]")
-        self._check_structure_is_valid()
+        # print(f"change_segment_points() from\n\t{original_pnts} to\n\t[{segment.xy0},{segment.xy1}]")
+        self._stcheck_structure_is_valid()
         return (success_val_0, success_val_1), (prev_segment, next_segment)
 
     def cleanup(self):
@@ -676,7 +686,7 @@ class SingleTrace(AbstractTrace):
                             success, (previous_segment, next_segment) = self.remove_segment(segment)
                             assert success
 
-                        self._check_structure_is_valid()
+                        self._stcheck_structure_is_valid()
 
                         found_short_trace = True
                         break
@@ -1096,10 +1106,10 @@ class SingleTrace(AbstractTrace):
 
         # Recalculate the starting and ending segments depending on
         # if we should be adding through-holes for the traces.
-        if pins[0] is not None:
+        if 0 in self.pins:
             segments[0] = LineSegment(pins[0].location, segments[0].xy1)
 
-        if pins[1] is not None:
+        if 1 in self.pins:
             segments[-1] = LineSegment(segments[-1].xy0, pins[1].location)
 
         return tuple(segments)
@@ -1118,11 +1128,7 @@ class SingleTrace(AbstractTrace):
         ret = copy.copy(self.pins)
 
         # Recalculate the pin locations to be offset from the component through holes
-        for end in [0, 1]:
-            pin = self.pins[end]
-            if pin is None:
-                continue
-
+        for end, pin in self.pins.items():
             dist = Pin.through_hole_diameter() / 2 + Via.via_diameter() / 2
 
             def get_segment_at_dist(segments: list[LineSegment]):

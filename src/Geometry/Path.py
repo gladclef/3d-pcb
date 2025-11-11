@@ -160,18 +160,22 @@ class Path:
             There will be at most one of these.
         """
         assert xy_pnt in self.xy_points
+        starting_segment_count = len(self.segments)
         
         # get the previous and next segments
         old_segments = self.segments_at_xypnt(xy_pnt)
         if len(old_segments) == 1:
             if old_segments[0].xy0 == xy_pnt:
                 prev_segment, next_segment = old_segments[0], None
+                insert_index = 0
             elif old_segments[0].xy1 == xy_pnt:
                 prev_segment, next_segment = None, old_segments[0]
+                insert_index = 1
             else:
                 raise RuntimeError
         else:
             prev_segment, next_segment = old_segments[0], old_segments[1]
+            insert_index = self.segments.index(prev_segment)
         
         # remove the old segments
         for segment in old_segments:
@@ -181,12 +185,14 @@ class Path:
         new_segments: list[LineSegment] = []
         if len(old_segments) > 1:
             new_segment = LineSegment(prev_segment.xy0, next_segment.xy1, prev_segment.fline)
+            self.segments.insert(insert_index, new_segment)
             new_segments.append(new_segment)
         else:
             # nothing to do, no new segments to build
             pass
 
         self._check_structure_is_valid()
+        assert len(self.segments) >= starting_segment_count-1
 
         return old_segments, new_segments
     

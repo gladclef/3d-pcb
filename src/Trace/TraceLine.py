@@ -102,7 +102,7 @@ class TraceLine(LineSegment):
         self.is_branch = copy_from.is_branch
 
     def reversed(self) -> "TraceLine":
-        ret = TraceLine(self.xy1, self.xy0, self.fline)
+        ret = TraceLine(self.fline, self.xy1, self.xy0)
         ret.copy_properties(self)
         return ret
 

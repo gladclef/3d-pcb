@@ -69,6 +69,8 @@ class AbstractTrace(Path, PntInc, ABC):
         for segment in new_segments:
             new_new_segment = TraceLine(segment.fline, segment.xy0, segment.xy1)
             new_new_segment.copy_properties(old_segments[0])
+            self.segments.insert(self.segments.index(segment), new_new_segment)
+            self.segments.remove(segment)
             new_new_segments.append(new_new_segment)
         
         return old_segments, new_segments
