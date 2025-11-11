@@ -577,6 +577,25 @@ class SingleTrace(AbstractTrace):
             new_xy0: Point = None,
             new_xy1: Point = None
         ) -> tuple[tuple[bool, bool], tuple[LineSegment|None, LineSegment|None]]:
+        """ Moves the points for the given segment and related components to
+        the new locations.
+
+        Parameters
+        ----------
+        segment : LineSegment
+            The segment to be moved.
+        new_xy0 : Point, optional
+            The new point to move the start of the segment to, or None. By default None
+        new_xy1 : Point, optional
+            The new point to move the end of the segment to, or None. By default None
+
+        Returns
+        -------
+        xy0_success, xy1_success: tuple[bool, bool]
+            True if the xy0 or xy1 points were changed, respectively.
+        prev_segment, next_segment: tuple[LineSegment|None, LineSegment|None]
+            The previous and next segments that are next to the given segment.
+        """
         original_pnts = segment.xy_points
 
         # If the pins are set then don't change these locations

@@ -131,3 +131,6 @@ class Pin(DrillHole):
         parent = None
         pin = cls(parent, pin_desc, pad_name, location_mm, layer)
         return [pin], ret_lines
+    
+    def __repr__(self):
+        return "Pin" + repr(self.location)
