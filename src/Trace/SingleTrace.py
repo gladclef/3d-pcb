@@ -783,7 +783,7 @@ class SingleTrace(AbstractTrace):
             xy_points.add(point0)
             xy_points.add(point1)
 
-            edges.append(TraceLine(segment_line, point0, point1))
+            edges.append(TraceLine(point0, point1, segment_line))
 
         # parse the vias for this route
         vias, l = Via.from_cad_file(trace)

@@ -4,7 +4,9 @@ from Geometry.Point import Point
 
 
 class TraceLine(LineSegment):
-    def __init__(self, fline: FLine, xy0: Point, xy1: Point):
+    def __init__(self, xy0: Point, xy1: Point, fline: FLine):
+        assert isinstance(xy0, Point)
+        assert isinstance(xy1, Point)
         super().__init__(xy0, xy1, fline)
 
         self._is_end: bool = False
@@ -102,7 +104,7 @@ class TraceLine(LineSegment):
         self.is_branch = copy_from.is_branch
 
     def reversed(self) -> "TraceLine":
-        ret = TraceLine(self.fline, self.xy1, self.xy0)
+        ret = TraceLine(self.xy1, self.xy0, self.fline)
         ret.copy_properties(self)
         return ret
 

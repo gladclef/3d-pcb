@@ -40,8 +40,8 @@ class AbstractTrace(Path, PntInc, ABC):
     def insert_xypnt(self, new_xy_pnt: Point, old_segment: TraceLine) -> tuple[TraceLine, TraceLine]:
         prev_segment, next_segment = super().insert_xypnt(new_xy_pnt, old_segment)
         
-        new_prev_segment = TraceLine(prev_segment.fline, prev_segment.xy0, prev_segment.xy1)
-        new_next_segment = TraceLine(next_segment.fline, next_segment.xy0, next_segment.xy1)
+        new_prev_segment = TraceLine(prev_segment.xy0, prev_segment.xy1, prev_segment.fline)
+        new_next_segment = TraceLine(next_segment.xy0, next_segment.xy1, next_segment.fline)
         new_prev_segment.copy_properties(old_segment)
         new_next_segment.copy_properties(old_segment)
 
@@ -50,7 +50,7 @@ class AbstractTrace(Path, PntInc, ABC):
     def append_xypnt(self, new_xy_pnt: Point, at_start: bool, fline: FLine = None) -> TraceLine:
         segment = super().append_xypnt(new_xy_pnt, at_start, fline)
 
-        new_segment = TraceLine(segment.fline, segment.xy0, segment.xy1)
+        new_segment = TraceLine(segment.xy0, segment.xy1, segment.fline)
         new_segment.is_end = True
 
         if 1 in new_segment.joined_ends:
@@ -67,7 +67,7 @@ class AbstractTrace(Path, PntInc, ABC):
 
         new_new_segments: list[TraceLine] = []
         for segment in new_segments:
-            new_new_segment = TraceLine(segment.fline, segment.xy0, segment.xy1)
+            new_new_segment = TraceLine(segment.xy0, segment.xy1, segment.fline)
             new_new_segment.copy_properties(old_segments[0])
             self.segments.insert(self.segments.index(segment), new_new_segment)
             self.segments.remove(segment)

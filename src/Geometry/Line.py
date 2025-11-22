@@ -89,15 +89,15 @@ class Line:
 
         # check for vertical or horizontal lines
         if abs(np.sin(angle)*geo.INF_THRESH) >= geo.INF_THRESH-1:
-            return Line(Point(np.cos(angle), np.sin(angle)), x_intercept=point.x)
+            return cls(Point(np.cos(angle), np.sin(angle)), x_intercept=point.x)
         elif abs(np.cos(angle)*geo.INF_THRESH) >= geo.INF_THRESH-1:
-            return Line(Point(np.cos(angle), np.sin(angle)), y_intercept=point.y)
+            return cls(Point(np.cos(angle), np.sin(angle)), y_intercept=point.y)
         
         slope = np.sin(angle) / np.cos(angle)
         y_intercept = point.y - slope*point.x
         x = np.cos(angle) * np.sign(angle)
         y = np.sin(angle) * np.sign(angle)
-        return Line(Point(x, y), y_intercept=y_intercept)
+        return cls(Point(x, y), y_intercept=y_intercept)
     
     @classmethod
     def from_two_points(cls, pnt0: Point, pnt1: Point) -> "Line":
