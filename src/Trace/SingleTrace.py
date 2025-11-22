@@ -1131,20 +1131,19 @@ class SingleTrace(AbstractTrace):
         for end, pin in self.pins.items():
             dist = Pin.through_hole_diameter() / 2 + Via.via_diameter() / 2
 
-            def get_segment_at_dist(segments: list[LineSegment]):
-                seg_lengths = 0
+            def get_segment_at_dist(start: Point, segments: list[LineSegment], end):
                 for segment in segments:
-                    seg_lengths += segment.length
-                    if seg_lengths >= dist:
+                    seg_end = segment.xy0 if end == 0 else segment.xy1
+                    if start.distance(seg_end) >= dist:
                         break
                 return segment
 
             if end == 0:
-                segment = get_segment_at_dist(self.segments)
+                segment = get_segment_at_dist(pin.location, self.segments, 1)
                 assert pin.location.distance(segment.xy0) < Pin.through_hole_diameter() + Via.via_diameter()
                 adjusted_loc = segment.distance_along_line(dist, pin.location)
             else:
-                segment = get_segment_at_dist(reversed(self.segments))
+                segment = get_segment_at_dist(pin.location, reversed(self.segments), 0)
                 assert pin.location.distance(segment.xy1) < Pin.through_hole_diameter() + Via.via_diameter()
                 adjusted_loc = segment.reversed().distance_along_line(dist, pin.location)
 
