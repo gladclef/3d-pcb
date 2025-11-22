@@ -829,14 +829,14 @@ class SingleTrace(AbstractTrace):
                 next_line = edge_group[line_idx+1]
                 if line.xy0 in next_line.xy_points:
                     assert line.xy1 not in next_line.xy_points, f"Two lines share the same points:\n\t{line.fline}\n\t{next_line.fline}"
-                    line.xy0, line.xy1 = line.xy1, line.xy0
+                    edge_group[line_idx] = line.reversed()
 
             # orient the last edge
             end_b = edge_group[-1]
             prev_line = edge_group[-2]
             if end_b.xy1 in prev_line.xy_points:
                 assert end_b.xy0 not in prev_line.xy_points
-                end_b.xy0, end_b.xy1 = end_b.xy1, end_b.xy0
+                edge_group[-1] = end_b.reversed()
 
             assert all([edge_group[i].xy1 == edge_group[i+1].xy0 for i in range(len(edge_group)-1)])
 
