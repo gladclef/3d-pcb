@@ -89,7 +89,7 @@ class Board:
 
         return traces_polydata, vias_polydata, component_polydata
     
-    def draw_board(self):
+    def draw_board(self, block=True, save_path: str=None):
         """
         For debugging: draw simplified versions of the traces and vias that
         will be generated for this board.
@@ -113,7 +113,13 @@ class Board:
 
         # show the plot
         plt.axis('equal')
-        plt.show(block=True)
+        plt.show(block=block)
+
+        # save the plot
+        if save_path is not None:
+            plt.savefig(save_path, dpi=600)
+
+        return fig, ax
 
         
 if __name__ == "__main__":
@@ -121,7 +127,8 @@ if __name__ == "__main__":
     g.CIRCLE_RESOLUTION = 16
 
     example_name = "deej"
-    example_dir = os.path.join(os.path.dirname(__file__), "..", "examples", example_name)
+    base_dir = os.path.join(os.path.dirname(__file__), "..")
+    example_dir = os.path.join(base_dir, "examples", example_name)
     limit_layers, layer_name = ["TOP"], "_top"
     print_mode = "conductive_filament"
 
@@ -142,7 +149,7 @@ if __name__ == "__main__":
     #     for trace in board.traces:
     #         trace.adjust_ends_for_conductive_filament()
     board.cleanup()
-    board.draw_board()
+    board.draw_board(block=True, save_path=os.path.join(base_dir, "board.png"))
 
     traces_pd, vias_pd, component_pd = board.to_vtk()
     pyvista.PolyData(traces_pd).save(os.path.join(example_dir, "stls", f"{example_name}_traces{layer_name}.stl"))
