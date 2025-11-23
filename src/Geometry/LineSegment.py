@@ -17,29 +17,29 @@ class LineSegment(Line):
         self.fline = fline
 
     @classmethod
-    def from_vector(cls, x: float, y: float, y_intercept: float=None, x_intercept: float=None, length: float=1) -> "LineSegment":
+    def from_vector(cls, x: float, y: float, y_intercept: float=None, x_intercept: float=None, length: float=1, fline: FLine = None) -> "LineSegment":
         l0 = Line(x, y, y_intercept, x_intercept)
         xy0 = l0.xy0
         xy1 = l0.distance_along_line(length, xy0)
-        cls(xy0, xy1)
+        cls(xy0, xy1, fline)
 
     @classmethod
-    def from_slope_intercept(cls, slope: float, y_intercept: float, length: float=1) -> "LineSegment":
+    def from_slope_intercept(cls, slope: float, y_intercept: float, length: float=1, fline: FLine = None) -> "LineSegment":
         l0 = Line.from_slope_intercept(slope, y_intercept)
         xy0 = l0.xy0
         xy1 = l0.distance_along_line(length, xy0)
-        return cls(xy0, xy1)
+        return cls(xy0, xy1, fline)
     
     @classmethod
-    def from_angle_point(cls, angle: float, point: Point, length: float=1) -> "LineSegment":
+    def from_angle_point(cls, angle: float, point: Point, length: float=1, fline: FLine = None) -> "LineSegment":
         l0 = Line.from_angle_point(angle, point)
         xy0 = l0.xy0
         xy1 = l0.distance_along_line(length, xy0)
-        return cls(xy0, xy1)
+        return cls(xy0, xy1, fline)
     
     @classmethod
-    def from_two_points(cls, xy1: Point, pnt2: Point) -> "LineSegment":
-        cls(xy1, pnt2)
+    def from_two_points(cls, xy1: Point, pnt2: Point, fline: FLine = None) -> "LineSegment":
+        cls(xy1, pnt2, fline)
 
     @property
     def xy0(self) -> Point:
@@ -149,7 +149,7 @@ class LineSegment(Line):
 
     def reversed(self) -> "LineSegment":
         # override parent method to return a line segment
-        return LineSegment(self.xy1, self.xy0)
+        return self.__class__(self.xy1, self.xy0, self.fline)
 
     def __repr__(self):
         return f"LineSeg<{self.xy0}:{self.xy1}>"
