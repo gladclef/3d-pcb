@@ -336,14 +336,14 @@ class Line:
         # Check for vertical or horizontal lines.
         if self.is_vertical:
             if self.angle < np.pi:
-                return Line.from_angle_point(0, from_point)
+                return self.__class__.from_angle_point(0, from_point)
             else:
-                return Line.from_angle_point(np.pi, from_point)
+                return self.__class__.from_angle_point(np.pi, from_point)
         if self.is_horizontal:
             if self.angle < np.pi*1/2 or self.angle > np.pi*3/2:
-                return Line.from_angle_point(np.pi*3/2, from_point)
+                return self.__class__.from_angle_point(np.pi*3/2, from_point)
             else:
-                return Line.from_angle_point(np.pi*1/2, from_point)
+                return self.__class__.from_angle_point(np.pi*1/2, from_point)
             
         # Get the tangent slope.
         tan_slope = -1 / self.slope
