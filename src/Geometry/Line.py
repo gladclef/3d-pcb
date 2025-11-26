@@ -1,3 +1,5 @@
+import functools as ft
+
 import numpy as np
 
 from Geometry.Point import Point
@@ -5,83 +7,43 @@ import Geometry.geometry_tools as geo
 
 
 class Line:
-    def __init__(self, xy: Point, y_intercept: float=None, x_intercept: float=None):
+    def __init__(self, xy0: Point, xy1: Point):
         """
         Parameters
         ----------
-        xy : Point
-            The x and y components of the line slope.
-        y_intercept : float, optional
-            Where the line crosses the y axis, by default 0
-        x_intercept : float, optional
-            Where the line crosses the x axis, by default 0.
-            Only necessary when the line is vertical.
+        xy0 : Point
+            The first of two points defining this line and its directionality.
+        xy1 : Point
+            The second of two points defining this line and its directionality.
         """
-        # get default values
-        slope = self.xy_to_slope(xy.x, xy.y)
-        if slope == 0:
-            # x intercept is undefined
-            y_intercept = y_intercept if y_intercept is not None else 0
-            if x_intercept is not None:
-                raise ValueError("2D line x intercept is undefined for a horizontal line")
-        elif abs(slope) == np.inf:
-            # y intercept is undefined
-            x_intercept = x_intercept if x_intercept is not None else 0
-            if y_intercept is not None:
-                raise ValueError("2D line y intercept is undefined for a horizontal line")
+        if xy0.distance(xy1) < geo.ZERO_THRESH:
+            raise ValueError(f"Error in Line(): xy0 and xy1 must be different points! {xy0=}, {xy1=}")
+
+        self._xy0 = xy0
+        self._xy1 = xy1
+        
+    @classmethod
+    def from_vector(cls, vector: Point, x_intercept = 0, y_intercept = 0) -> "Line":
+        slope = cls.xy_to_slope(vector.x, vector.y)
+        if abs(slope) >= geo.INF_THRESH:
+            if slope > 0:
+                return cls(Point(x_intercept, 0), Point(x_intercept, 10))
+            else:
+                return cls(Point(x_intercept, 0), Point(x_intercept, -10))
+        elif abs(slope) <= geo.ZERO_THRESH:
+            if vector.x >= 0:
+                return cls(Point(0, y_intercept), Point(10, y_intercept))
+            else:
+                return cls(Point(0, y_intercept), Point(-10, y_intercept))
         else:
-            # assume/calculate x and y intercepts
-            if x_intercept is not None:
-                calc_y_intercept = -slope*x_intercept
-                if y_intercept is not None and abs(y_intercept - calc_y_intercept) > geo.ZERO_THRESH:
-                    raise ValueError(f"2D line has both an x and y intercept, but provided y-intercept {y_intercept} != calculated y-intercept {calc_y_intercept}")
-                y_intercept = calc_y_intercept
+            if vector.x >= 0:
+                return cls(Point(0, y_intercept), Point(10, slope*10+y_intercept))
             else:
-                if y_intercept is not None:
-                    x_intercept = -y_intercept/slope
-                else:
-                    x_intercept = 0
-                    y_intercept = 0
-
-        self.xy = xy
-        self.y_intercept = y_intercept
-        self.x_intercept = x_intercept
-
-    @staticmethod
-    def xy_to_slope(x: float, y: float) -> float:
-        if abs(x) <= geo.ZERO_THRESH:
-            if abs(y) <= geo.ZERO_THRESH:
-                raise RuntimeError("2D line with zero x slope component and zero y slope component is undefined.")
-            else:
-                y_dir = 1 if y > 0 else -1
-                return y_dir * np.inf
-        else: # x != 0
-            if abs(y) <= geo.ZERO_THRESH:
-                return 0
-            else: # x != 0 and y != 0
-                if abs(x) >= geo.INF_THRESH:
-                    if abs(y) >= geo.INF_THRESH:
-                        raise RuntimeError("2D line with infinite x slope component and infinite y slope component is undefined.")
-                    else: # y < inf
-                        return 0
-                else: # x < inf
-                    if abs(y) >= geo.INF_THRESH:
-                        y_dir = 1 if y > 0 else -1
-                        return y_dir * np.inf
-                    else:
-                        return y / x
+                return cls(Point(0, y_intercept), Point(-10, slope*-10+y_intercept))
     
     @classmethod
     def from_slope_intercept(cls, slope: float, y_intercept: float) -> "Line":
-        if abs(slope) >= geo.INF_THRESH:
-            if slope > 0:
-                return cls(Point(0, np.inf))
-            else:
-                return cls(Point(0, -np.inf))
-        elif abs(slope) <= geo.ZERO_THRESH:
-            return cls(Point(10, 0), y_intercept)
-        else:
-            return cls(Point(10, slope*10), y_intercept)
+        return cls.from_vector(Point(1, slope), y_intercept=y_intercept)
     
     @classmethod
     def from_angle_point(cls, angle: float, point: Point) -> "Line":
@@ -89,21 +51,78 @@ class Line:
 
         # check for vertical or horizontal lines
         if abs(np.sin(angle)*geo.INF_THRESH) >= geo.INF_THRESH-1:
-            return cls(Point(np.cos(angle), np.sin(angle)), x_intercept=point.x)
+            return cls.from_vector(Point(np.cos(angle), np.sin(angle)), x_intercept=point.x)
         elif abs(np.cos(angle)*geo.INF_THRESH) >= geo.INF_THRESH-1:
-            return cls(Point(np.cos(angle), np.sin(angle)), y_intercept=point.y)
+            return cls.from_vector(Point(np.cos(angle), np.sin(angle)), y_intercept=point.y)
         
         slope = np.sin(angle) / np.cos(angle)
         y_intercept = point.y - slope*point.x
         x = np.cos(angle) * np.sign(angle)
         y = np.sin(angle) * np.sign(angle)
-        return cls(Point(x, y), y_intercept=y_intercept)
+        return cls.from_vector(Point(x, y), y_intercept=y_intercept)
     
     @classmethod
     def from_two_points(cls, pnt0: Point, pnt1: Point) -> "Line":
-        diff = pnt1 - pnt0
-        angle = np.atan2(diff.y, diff.x)
-        return cls.from_angle_point(angle, pnt0)
+        return cls(pnt0, pnt1)
+
+    @property
+    def xy0(self) -> Point:
+        return self._xy0
+    
+    @xy0.setter
+    def xy0(self, val: Point):
+        self._xy0 = val
+        del self.xy
+    
+    @property
+    def xy1(self) -> Point:
+        return self._xy1
+    
+    @xy1.setter
+    def xy1(self, val: Point):
+        self._xy1 = val
+        del self.xy
+
+    @property
+    def x0(self) -> float:
+        """ The x component of the start of this line. """
+        return self.xy0.x
+    
+    @property
+    def x1(self) -> float:
+        """ The x component of the end of this line. """
+        return self.xy1.x
+    
+    @property
+    def y0(self) -> float:
+        """ The y component of the start of this line. """
+        return self.xy0.y
+    
+    @property
+    def y1(self) -> float:
+        """ The y component of the end of this line. """
+        return self.xy1.y
+
+    @ft.cached_property
+    def xy(self) -> Point:
+        """ This directionality of this line as a unit vector. """
+        return (self.xy1 - self.xy0) / (self.xy1.distance(self.xy0))
+    
+    @property
+    def x_intercept(self) -> float:
+        if self.is_vertical:
+            return self.xy0.x
+        if self.is_horizontal:
+            return 0
+        return self.xy0.x - (self.xy0.y / self.slope)
+    
+    @property
+    def y_intercept(self) -> float:
+        if self.is_vertical:
+            return 0
+        if self.is_horizontal:
+            return self.xy0.y
+        return self.xy0.y - (self.xy0.x * self.slope)
 
     @property
     def is_vertical(self) -> bool:
@@ -117,61 +136,6 @@ class Line:
                  (abs(self.xy.y) < geo.ZERO_THRESH) or \
                  (abs(self.xy.y / self.xy.x) < geo.ZERO_THRESH) ) and \
                ( not self.is_vertical )
-
-    @property
-    def x0(self) -> float:
-        """
-        The first x value that can be used to define the line from two points.
-        If this line is vertical, then this value will be the x intercept.
-        This value is usually going to be 0.
-        """
-        if self.is_vertical:
-            return self.x_intercept
-        return 0
-
-    @property
-    def x1(self) -> float:
-        """
-        The second x value that can be used to define the line from two points.
-        If this line is vertical, then this value will be the x intercept.
-        This value is usually going to be x1+1.
-        """
-        if self.is_vertical:
-            return self.x_intercept
-        elif self.is_horizontal:
-            return self.x0+1 if self.xy.x > 0 else self.x0-1
-        sign = 1 if (self.xy.x > 0) else -1
-        return self.x0+sign
-
-    @property
-    def y0(self) -> float:
-        """
-        The first y value that can be used to define the line from two points.
-        If this line is vertical, then this value will be 0.
-        This value is usually going to be the y-intercept.
-        """
-        if self.is_vertical:
-            return 0
-        return self.y_intercept
-
-    @property
-    def y1(self) -> float:
-        """
-        The first y value that can be used to define the line from two points.
-        If this line is vertical, then this value will be +/- 10.
-        This value is usually going to be slope*x2.
-        """
-        if self.is_vertical:
-            return 1 if self.xy.y > 0 else -1
-        return self.slope*self.x1 + self.y_intercept
-
-    @property
-    def xy0(self) -> Point:
-        return Point(self.x0, self.y0)
-    
-    @property
-    def xy1(self) -> Point:
-        return Point(self.x1, self.y1)
     
     @property
     def xy_points(self) -> tuple[Point, Point]:
@@ -180,7 +144,7 @@ class Line:
     @property
     def angle(self) -> float:
         """ Angle of this line, in the range 0-2pi """
-        ang = np.atan2(self.y1 - self.y0, self.x1 - self.x0)
+        ang = np.atan2(self.xy1.y - self.xy0.y, self.xy1.x - self.xy0.x)
         return geo.normalize_angle(ang)
     
     @property
@@ -198,11 +162,6 @@ class Line:
     @property
     def run(self) -> float:
         return np.cos(self.angle)
-
-    @staticmethod
-    def angle_to_slope(angle: float) -> float:
-        """ Returns the slope (rise / run) for the given angle. """
-        return np.sin(angle) / np.cos(angle)
 
     def is_point_on_right(self, test_point: Point) -> bool:
         if self.is_vertical:
@@ -367,3 +326,32 @@ class Line:
         xi = "N/A" if self.x_intercept is None else f"{self.x_intercept:.3f}"
         yi = "N/A" if self.y_intercept is None else f"{self.y_intercept:.3f}"
         return f"Line<x:{self.run:.3f},y:{self.rise:.3f},xi:{xi},yi:{yi}>"
+    
+    @staticmethod
+    def xy_to_slope(x: float, y: float) -> float:
+        if abs(x) <= geo.ZERO_THRESH:
+            if abs(y) <= geo.ZERO_THRESH:
+                raise RuntimeError("2D line with zero x slope component and zero y slope component is undefined.")
+            else:
+                y_dir = 1 if y > 0 else -1
+                return y_dir * np.inf
+        else: # x != 0
+            if abs(y) <= geo.ZERO_THRESH:
+                return 0
+            else: # x != 0 and y != 0
+                if abs(x) >= geo.INF_THRESH:
+                    if abs(y) >= geo.INF_THRESH:
+                        raise RuntimeError("2D line with infinite x slope component and infinite y slope component is undefined.")
+                    else: # y < inf
+                        return 0
+                else: # x < inf
+                    if abs(y) >= geo.INF_THRESH:
+                        y_dir = 1 if y > 0 else -1
+                        return y_dir * np.inf
+                    else:
+                        return y / x
+    
+    @staticmethod
+    def angle_to_slope(angle: float) -> float:
+        """ Returns the slope (rise / run) for the given angle. """
+        return np.sin(angle) / np.cos(angle)

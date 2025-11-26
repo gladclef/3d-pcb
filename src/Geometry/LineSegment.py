@@ -9,11 +9,8 @@ from FileIO.Line import Line as FLine
 
 class LineSegment(Line):
     def __init__(self, xy0: Point, xy1: Point, fline: FLine = None):
-        l1 = Line.from_two_points(xy0, xy1)
-        super().__init__(l1.xy, l1.y_intercept, l1.x_intercept)
+        super().__init__(xy0, xy1)
 
-        self._xy0 = xy0
-        self._xy1 = xy1
         self.fline = fline
 
     @classmethod
@@ -40,42 +37,6 @@ class LineSegment(Line):
     @classmethod
     def from_two_points(cls, xy1: Point, pnt2: Point, fline: FLine = None) -> "LineSegment":
         cls(xy1, pnt2, fline)
-
-    @property
-    def xy0(self) -> Point:
-        return self._xy0
-    
-    @xy0.setter
-    def xy0(self, val: Point):
-        self._xy0 = val
-
-    @property
-    def xy1(self) -> Point:
-        return self._xy1
-    
-    @xy1.setter
-    def xy1(self, val: Point):
-        self._xy1 = val
-
-    @property
-    def x0(self) -> float:
-        """ The x component of the start of this segment. """
-        return self.xy0.x
-    
-    @property
-    def x1(self) -> float:
-        """ The x component of the end of this segment. """
-        return self.xy1.x
-    
-    @property
-    def y0(self) -> float:
-        """ The y component of the start of this segment. """
-        return self.xy0.y
-    
-    @property
-    def y1(self) -> float:
-        """ The y component of the end of this segment. """
-        return self.xy1.y
 
     @property
     def rise(self) -> float:

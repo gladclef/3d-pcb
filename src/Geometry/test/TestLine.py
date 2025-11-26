@@ -1,3 +1,4 @@
+import math
 import random
 import unittest
 
@@ -8,104 +9,168 @@ from Geometry.Line import Line
 from Geometry.Point import Point as P2
 
 class TestLine(unittest.TestCase):
+    def test_xy_property(self):
+        # Create a line with points (1, 2) and slope 2
+        line = Line(P2(0, 0), P2(1, 2))
+
+        self.assertAlmostEqual(line.xy.x, math.cos(np.atan2(2, 1)))
+        self.assertAlmostEqual(line.xy.y, math.sin(np.atan2(2, 1)))
+
+        # Create a horizontal line
+        line = Line(P2(0, 5), P2(10, 5))
+
+        self.assertAlmostEqual(line.xy.x, 1)
+        self.assertAlmostEqual(line.xy.y, 0)
+
+    def test_x_intercept(self):
+        # Vertical line
+        line = Line(P2(3, 0), P2(3, 10))
+        self.assertEqual(line.x_intercept, 3)
+
+        # Horizontal line
+        line = Line(P2(0, 3), P2(10, 3))
+        self.assertEqual(line.x_intercept, 0)
+
+        # Ascending line (y = 2x + 1)
+        line = Line(P2(10, 21), P2(20, 41))
+        self.assertAlmostEqual(line.x_intercept, -0.5)
+
+        # Ascending line (y = 2x + 1)
+        line = Line(P2(-20, -39), P2(-10, -19))
+        self.assertAlmostEqual(line.x_intercept, -0.5)
+
+        # Descending line (y = -1/2x - 10)
+        line = Line(P2(-30, 5), P2(-20, 0))
+        self.assertAlmostEqual(line.x_intercept, -20)
+
+        # Descending line (y = -1/2x - 10)
+        line = Line(P2(-10, -5), P2(10, -15))
+        self.assertAlmostEqual(line.x_intercept, -20)
+
+    def test_y_intercept(self):
+        # Vertical line
+        line = Line(P2(3, 0), P2(3, 10))
+        self.assertEqual(line.y_intercept, 0)
+
+        # Horizontal line
+        line = Line(P2(0, 3), P2(10, 3))
+        self.assertEqual(line.y_intercept, 3)
+
+        # Ascending line (y = 2x + 1)
+        line = Line(P2(10, 21), P2(20, 41))
+        self.assertAlmostEqual(line.y_intercept, 1)
+
+        # Ascending line (y = 2x + 1)
+        line = Line(P2(-20, -39), P2(-10, -19))
+        self.assertAlmostEqual(line.y_intercept, 1)
+
+        # Descending line (y = -1/2x - 10)
+        line = Line(P2(-30, 5), P2(-20, 0))
+        self.assertAlmostEqual(line.y_intercept, -10)
+
+        # Descending line (y = -1/2x - 10)
+        line = Line(P2(-10, -5), P2(10, -15))
+        self.assertAlmostEqual(line.y_intercept, -10)
+
     def test_is_point_on_right(self):
-        self.assertTrue(Line(P2( 1,  0)).is_point_on_right(P2( 0, -1)))
-        self.assertTrue(Line(P2( 1,  1)).is_point_on_right(P2( 1,  0)))
-        self.assertTrue(Line(P2( 0,  1)).is_point_on_right(P2( 1,  1)))
-        self.assertTrue(Line(P2(-1,  1)).is_point_on_right(P2( 0,  1)))
-        self.assertTrue(Line(P2(-1,  0)).is_point_on_right(P2(-1,  1)))
-        self.assertTrue(Line(P2(-1, -1)).is_point_on_right(P2(-1,  0)))
-        self.assertTrue(Line(P2( 0, -1)).is_point_on_right(P2(-1, -1)))
-        self.assertTrue(Line(P2( 1, -1)).is_point_on_right(P2( 0, -1)))
+        self.assertTrue(Line.from_vector(P2( 1,  0)).is_point_on_right(P2( 0, -1)))
+        self.assertTrue(Line.from_vector(P2( 1,  1)).is_point_on_right(P2( 1,  0)))
+        self.assertTrue(Line.from_vector(P2( 0,  1)).is_point_on_right(P2( 1,  1)))
+        self.assertTrue(Line.from_vector(P2(-1,  1)).is_point_on_right(P2( 0,  1)))
+        self.assertTrue(Line.from_vector(P2(-1,  0)).is_point_on_right(P2(-1,  1)))
+        self.assertTrue(Line.from_vector(P2(-1, -1)).is_point_on_right(P2(-1,  0)))
+        self.assertTrue(Line.from_vector(P2( 0, -1)).is_point_on_right(P2(-1, -1)))
+        self.assertTrue(Line.from_vector(P2( 1, -1)).is_point_on_right(P2( 0, -1)))
         
-        self.assertTrue( Line(P2( 1,  0), y_intercept=1).is_point_on_right(P2(  0,  .5)))
-        self.assertFalse(Line(P2( 1,  0), y_intercept=1).is_point_on_right(P2(  0, 1.5)))
-        self.assertTrue( Line(P2( 0,  1), x_intercept=1).is_point_on_right(P2(1.5,   1)))
-        self.assertFalse(Line(P2( 0,  1), x_intercept=1).is_point_on_right(P2( .5,   1)))
-        self.assertTrue( Line(P2(-1,  0), y_intercept=1).is_point_on_right(P2( -1, 1.5)))
-        self.assertFalse(Line(P2(-1,  0), y_intercept=1).is_point_on_right(P2( -1,  .5)))
-        self.assertTrue( Line(P2( 0, -1), x_intercept=1).is_point_on_right(P2( .5,  -1)))
-        self.assertFalse(Line(P2( 0, -1), x_intercept=1).is_point_on_right(P2(1.5,  -1)))
+        self.assertTrue( Line.from_vector(P2( 1,  0), y_intercept=1).is_point_on_right(P2(  0,  .5)))
+        self.assertFalse(Line.from_vector(P2( 1,  0), y_intercept=1).is_point_on_right(P2(  0, 1.5)))
+        self.assertTrue( Line.from_vector(P2( 0,  1), x_intercept=1).is_point_on_right(P2(1.5,   1)))
+        self.assertFalse(Line.from_vector(P2( 0,  1), x_intercept=1).is_point_on_right(P2( .5,   1)))
+        self.assertTrue( Line.from_vector(P2(-1,  0), y_intercept=1).is_point_on_right(P2( -1, 1.5)))
+        self.assertFalse(Line.from_vector(P2(-1,  0), y_intercept=1).is_point_on_right(P2( -1,  .5)))
+        self.assertTrue( Line.from_vector(P2( 0, -1), x_intercept=1).is_point_on_right(P2( .5,  -1)))
+        self.assertFalse(Line.from_vector(P2( 0, -1), x_intercept=1).is_point_on_right(P2(1.5,  -1)))
 
     def test_intersection(self):
         arr = np.array
         ap = Line.from_angle_point
         eq = npt.assert_array_almost_equal
         π = np.pi
+        intersection = lambda a1, p1, a2, p2: ap(a1, P2(*p1)).intersection(ap(a2, P2(*p2))).as_tuple()
 
         # 45 degree angles
-        eq( actual=arr(ap(  π/4, (1,2)).intersection(ap(3*π/4, (1,4)))), desired=arr((2,3)), decimal=4 )
-        eq( actual=arr(ap(3*π/4, (1,2)).intersection(ap(  π/4, (1,4)))), desired=arr((0,3)), decimal=4 )
-        eq( actual=arr(ap(5*π/4, (1,2)).intersection(ap(3*π/4, (1,4)))), desired=arr((2,3)), decimal=4 )
-        eq( actual=arr(ap(7*π/4, (1,2)).intersection(ap(  π/4, (1,4)))), desired=arr((0,3)), decimal=4 )
+        eq( actual=arr(intersection(  π/4, (1,2), 3*π/4, (1,4))), desired=arr((2,3)),  decimal=4 )
+        eq( actual=arr(intersection(3*π/4, (1,2),   π/4, (1,4))), desired=arr((0,3)),  decimal=4 )
+        eq( actual=arr(intersection(5*π/4, (1,2), 3*π/4, (1,4))), desired=arr((2,3)),  decimal=4 )
+        eq( actual=arr(intersection(7*π/4, (1,2),   π/4, (1,4))), desired=arr((0,3)),  decimal=4 )
 
         # 90 degree angles
-        eq( actual=arr(ap(    0, (1,2)).intersection(ap(  π/2, (1,4)))), desired=arr((1,2)), decimal=4 )
-        eq( actual=arr(ap(  π/2, (1,2)).intersection(ap(    0, (1,4)))), desired=arr((1,4)), decimal=4 )
-        eq( actual=arr(ap(    π, (1,2)).intersection(ap(  π/2, (1,4)))), desired=arr((1,2)), decimal=4 )
-        eq( actual=arr(ap(3*π/2, (1,2)).intersection(ap(    0, (1,4)))), desired=arr((1,4)), decimal=4 )
+        eq( actual=arr(intersection(    0, (1,2),   π/2, (1,4))), desired=arr((1,2)),  decimal=4 )
+        eq( actual=arr(intersection(  π/2, (1,2),     0, (1,4))), desired=arr((1,4)),  decimal=4 )
+        eq( actual=arr(intersection(    π, (1,2),   π/2, (1,4))), desired=arr((1,2)),  decimal=4 )
+        eq( actual=arr(intersection(3*π/2, (1,2),     0, (1,4))), desired=arr((1,4)),  decimal=4 )
 
         # 45 degree angle and 90 degree angle
-        eq( actual=arr(ap(  π/4, (1,2)).intersection(ap(    0, (1,4)))), desired=arr((3,4)), decimal=4 )
-        eq( actual=arr(ap(3*π/4, (1,2)).intersection(ap(    0, (1,4)))), desired=arr((-1,4)), decimal=4 )
-        eq( actual=arr(ap(5*π/4, (1,2)).intersection(ap(    0, (1,4)))), desired=arr((3,4)), decimal=4 )
-        eq( actual=arr(ap(7*π/4, (1,2)).intersection(ap(    0, (1,4)))), desired=arr((-1,4)), decimal=4 )
-        eq( actual=arr(ap(  π/4, (1,2)).intersection(ap(  π/2, (1,4)))), desired=arr((1,2)), decimal=4 )
-        eq( actual=arr(ap(3*π/4, (1,2)).intersection(ap(  π/2, (1,4)))), desired=arr((1,2)), decimal=4 )
-        eq( actual=arr(ap(5*π/4, (1,2)).intersection(ap(  π/2, (1,4)))), desired=arr((1,2)), decimal=4 )
-        eq( actual=arr(ap(7*π/4, (1,2)).intersection(ap(  π/2, (1,4)))), desired=arr((1,2)), decimal=4 )
+        eq( actual=arr(intersection(  π/4, (1,2),     0, (1,4))), desired=arr((3,4)),  decimal=4 )
+        eq( actual=arr(intersection(3*π/4, (1,2),     0, (1,4))), desired=arr((-1,4)), decimal=4 )
+        eq( actual=arr(intersection(5*π/4, (1,2),     0, (1,4))), desired=arr((3,4)),  decimal=4 )
+        eq( actual=arr(intersection(7*π/4, (1,2),     0, (1,4))), desired=arr((-1,4)), decimal=4 )
+        eq( actual=arr(intersection(  π/4, (1,2),   π/2, (1,4))), desired=arr((1,2)),  decimal=4 )
+        eq( actual=arr(intersection(3*π/4, (1,2),   π/2, (1,4))), desired=arr((1,2)),  decimal=4 )
+        eq( actual=arr(intersection(5*π/4, (1,2),   π/2, (1,4))), desired=arr((1,2)),  decimal=4 )
+        eq( actual=arr(intersection(7*π/4, (1,2),   π/2, (1,4))), desired=arr((1,2)),  decimal=4 )
 
     def test_distance_along_line(self):
         sq2 = np.sqrt(1/2)
         eq = npt.assert_array_almost_equal
         arr = np.array
         si = Line.from_slope_intercept
-        tp = Line.from_two_points
+        tp = lambda p1, p2: Line.from_two_points(P2(*p1), P2(*p2))
+        at_dist = lambda l: l.distance_along_line(1).as_tuple()
 
         # no offset
-        eq( actual=arr(si(1,       0).distance_along_line(1)), desired=arr((sq2, sq2)),    decimal=4 )
-        eq( actual=arr(si(-1,      0).distance_along_line(1)), desired=arr((sq2, -sq2)),   decimal=4 )
-        eq( actual=arr(si(1/10,    0).distance_along_line(1)), desired=arr((.995, .0995)), decimal=4 )
-        eq( actual=arr(si(10,      0).distance_along_line(1)), desired=arr((.0995, .995)), decimal=4 )
-        eq( actual=arr(si(np.inf,  0).distance_along_line(1)), desired=arr((0, 1)),        decimal=4 )
-        eq( actual=arr(si(-np.inf, 0).distance_along_line(1)), desired=arr((0, -1)),       decimal=4 )
-        eq( actual=arr(si(0,       0).distance_along_line(1)), desired=arr((1, 0)),        decimal=4 )
-        eq( actual=arr(si(-0,      0).distance_along_line(1)), desired=arr((1, 0)),        decimal=4 )
-        eq( actual=arr(tp((0,0), (-10,0)).distance_along_line(1)), desired=arr((-1, 0)),   decimal=4 )
+        eq( actual=arr(at_dist(si(      1, 0      ))), desired=arr((  sq2, sq2  )), decimal=4 )
+        eq( actual=arr(at_dist(si(     -1, 0      ))), desired=arr((  sq2, -sq2 )), decimal=4 )
+        eq( actual=arr(at_dist(si(   1/10, 0      ))), desired=arr(( .995, .0995)), decimal=4 )
+        eq( actual=arr(at_dist(si(     10, 0      ))), desired=arr((.0995, .995 )), decimal=4 )
+        eq( actual=arr(at_dist(si( np.inf, 0      ))), desired=arr((    0, 1    )), decimal=4 )
+        eq( actual=arr(at_dist(si(-np.inf, 0      ))), desired=arr((    0, -1   )), decimal=4 )
+        eq( actual=arr(at_dist(si(      0, 0      ))), desired=arr((    1, 0    )), decimal=4 )
+        eq( actual=arr(at_dist(si(     -0, 0      ))), desired=arr((    1, 0    )), decimal=4 )
+        eq( actual=arr(at_dist(tp(  (0,0), (-10,0)))), desired=arr((   -1, 0    )), decimal=4 )
         
         # x or y intercept outside of zero
-        eq( actual=arr(si(1,       2).distance_along_line(1)),     desired=arr((sq2, sq2+2)),   decimal=4 )
-        eq( actual=arr(si(-1,      2).distance_along_line(1)),     desired=arr((sq2, -sq2+2)),  decimal=4 )
-        eq( actual=arr(si(1/10,    2).distance_along_line(1)),     desired=arr((.995, 2.0995)), decimal=4 )
-        eq( actual=arr(si(10,      2).distance_along_line(1)),     desired=arr((.0995, 2.995)), decimal=4 )
-        eq( actual=arr(tp((2,0), (2,10)).distance_along_line(1)),  desired=arr((2, 1)),         decimal=4 )
-        eq( actual=arr(tp((2,10), (2,0)).distance_along_line(1)),  desired=arr((2, -1)),        decimal=4 )
-        eq( actual=arr(si(0,       2).distance_along_line(1)),     desired=arr((1, 2)),         decimal=4 )
-        eq( actual=arr(si(-0,      2).distance_along_line(1)),     desired=arr((1, 2)),         decimal=4 )
-        eq( actual=arr(tp((0,2), (-10,2)).distance_along_line(1)), desired=arr((-1, 2)),        decimal=4 )
+        eq( actual=arr(at_dist(si(     1, 2      ))), desired=arr((  sq2, sq2+2 )), decimal=4 )
+        eq( actual=arr(at_dist(si(    -1, 2      ))), desired=arr((  sq2, -sq2+2)), decimal=4 )
+        eq( actual=arr(at_dist(si(  1/10, 2      ))), desired=arr(( .995, 2.0995)), decimal=4 )
+        eq( actual=arr(at_dist(si(    10, 2      ))), desired=arr((.0995, 2.995 )), decimal=4 )
+        eq( actual=arr(at_dist(tp( (2,0), (2,10) ))), desired=arr((    2, 1     )), decimal=4 )
+        eq( actual=arr(at_dist(tp((2,10), (2,0)  ))), desired=arr((    2, -1    )), decimal=4 )
+        eq( actual=arr(at_dist(si(     0, 2      ))), desired=arr((    1, 2     )), decimal=4 )
+        eq( actual=arr(at_dist(si(    -0, 2      ))), desired=arr((    1, 2     )), decimal=4 )
+        eq( actual=arr(at_dist(tp( (0,2), (-10,2)))), desired=arr((   -1, 2     )), decimal=4 )
     
     def test_get_tangent_line(self):
         eq = npt.assert_array_almost_equal
         arr = np.array
-        yrr = lambda v: np.array((v.slope, v.y_intercept))
-        xrr = lambda v: np.array((v.slope, v.x_intercept))
-        trr = lambda v: np.array(((v.x1, v.y1), (v.x2, v.y2)))
+        yrr = lambda v: np.array((v.slope, v.y_intercept)) # slope + x intercept array
+        xrr = lambda v: np.array((v.slope, v.x_intercept)) # slope + y intercept array
+        trr = lambda v: np.array((v.xy0.as_tuple(), v.xy1.as_tuple())) # tuple array
         si = Line.from_slope_intercept
         tp = lambda t1, t2: Line.from_two_points(P2(*t1), P2(*t2))
-        sq2 = np.sqrt(2)
 
-        eq( actual=yrr( si(1, 0).get_tangent_line((0, 0)) ),            desired=arr((-1, 0)),             decimal=4 )
-        eq( actual=yrr( si(-1, 0).get_tangent_line((0, 0)) ),           desired=arr((1, 0)),              decimal=4 )
-        eq( actual=yrr( si(1/10, 0).get_tangent_line((0, 0)) ),         desired=arr((-10, 0)),            decimal=4 )
-        eq( actual=yrr( si(10, 0).get_tangent_line((0, 0)) ),           desired=arr((-1/10, 0)),          decimal=4 )
-        eq( actual=yrr( si(np.inf, 0).get_tangent_line((0, 0)) ),       desired=arr((0, 0)),              decimal=4 )
-        eq( actual=yrr( si(-np.inf, 0).get_tangent_line((0, 0)) ),      desired=arr((0, 0)),              decimal=4 )
-        eq( actual=xrr( si(0, 0).get_tangent_line((0, 0)) ),            desired=arr((-np.inf, 0)),        decimal=4 )
-        eq( actual=xrr( si(-0, 0).get_tangent_line((0, 0)) ),           desired=arr((-np.inf, 0)),        decimal=4 )
-        eq( actual=trr( tp((0,0), (-10,0)).get_tangent_line((0, 0)) ),  desired=arr(((0, 0), (0, 1))),   decimal=4 )
-        eq( actual=trr( tp((0,0), (5,5)).get_tangent_line((0, 0)) ),    desired=arr(((0, 0), (1, -1))), decimal=4 )
-        eq( actual=trr( tp((0,0), (-10,0)).get_tangent_line((-5, 0)) ), desired=arr(((-5, 0), (-5, 1))), decimal=4 )
-        eq( actual=trr( tp((0,0), (5,5)).get_tangent_line((2, 2)) ),    desired=arr(((0, 4), (1, 3))),  decimal=4 )
+        eq( actual=yrr( si(      1, 0).get_tangent_line(     P2(0, 0))),  desired=arr((-1, 0)),              decimal=4 )
+        eq( actual=yrr( si(     -1, 0).get_tangent_line(     P2(0, 0))),  desired=arr((1, 0)),               decimal=4 )
+        eq( actual=yrr( si(   1/10, 0).get_tangent_line(     P2(0, 0))),  desired=arr((-10, 0)),             decimal=4 )
+        eq( actual=yrr( si(     10, 0).get_tangent_line(     P2(0, 0))),  desired=arr((-1/10, 0)),           decimal=4 )
+        eq( actual=yrr( si( np.inf, 0).get_tangent_line(     P2(0, 0))),  desired=arr((0, 0)),               decimal=4 )
+        eq( actual=yrr( si(-np.inf, 0).get_tangent_line(     P2(0, 0))),  desired=arr((0, 0)),               decimal=4 )
+        eq( actual=xrr( si(      0, 0).get_tangent_line(     P2(0, 0))),  desired=arr((-np.inf, 0)),         decimal=4 )
+        eq( actual=xrr( si(     -0, 0).get_tangent_line(     P2(0, 0))),  desired=arr((-np.inf, 0)),         decimal=4 )
+        eq( actual=trr( tp((0,0), (-10,0)).get_tangent_line( P2(0, 0))),  desired=arr(( (0, 0), (0, 10)  )), decimal=4 )
+        eq( actual=trr( tp((0,0), (5,5)  ).get_tangent_line( P2(0, 0))),  desired=arr(( (0, 0), (10, -10))), decimal=4 )
+        eq( actual=trr( tp((0,0), (-10,0)).get_tangent_line( P2(-5, 0))), desired=arr(((-5, 0), (-5, 10) )), decimal=4 )
+        eq( actual=trr( tp((0,0), (5,5)  ).get_tangent_line( P2(2, 2))),  desired=arr(( (0, 4), (10, -6) )), decimal=4 )
 
     def test_line_two_points_to_slope_intercept(self):
         eq = npt.assert_array_almost_equal
@@ -138,7 +203,7 @@ class TestLine(unittest.TestCase):
                 y2 = random.random()*100
             
             l1 = Line.from_two_points(P2(x1, y1), P2(x2, y2))
-            l2 = Line.from_two_points(P2(l1.x0, l1.y0), P2(l1.x1, l1.y1))
+            l2 = Line.from_two_points(l1.xy0, l1.xy1)
 
             self.assertAlmostEqual(l1.angle, l2.angle, places=5)
             self.assertAlmostEqual(l1.y_intercept, l2.y_intercept, places=5)

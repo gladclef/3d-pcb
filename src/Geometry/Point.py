@@ -1,4 +1,5 @@
 import math
+from typing import Union, overload
 
 
 class Point:
@@ -22,17 +23,25 @@ class Point:
         """ The (x, y) value that represents this point. """
         return (self.x, self.y)
     
-    def __add__(self, other: "Point") -> "Point":
-        return Point(self.x + other.x, self.y + other.y)
+    def __add__(self, other: Union["Point",float]) -> "Point":
+        if isinstance(other, Point):
+            return Point(self.x + other.x, self.y + other.y)
+        return Point(self.x + other, self.y + other)
     
-    def __sub__(self, other: "Point") -> "Point":
-        return Point(self.x - other.x, self.y - other.y)
+    def __sub__(self, other: Union["Point",float]) -> "Point":
+        if isinstance(other, Point):
+            return Point(self.x - other.x, self.y - other.y)
+        return Point(self.x - other, self.y - other)
     
-    def __mul__(self, other: "Point") -> "Point":
-        return Point(self.x * other.x, self.y * other.y)
+    def __mul__(self, other: Union["Point",float]) -> "Point":
+        if isinstance(other, Point):
+            return Point(self.x * other.x, self.y * other.y)
+        return Point(self.x * other, self.y * other)
     
-    def __truediv__(self, other: "Point") -> "Point":
-        return Point(self.x / other.x, self.y / other.y)
+    def __truediv__(self, other: Union["Point",float]) -> "Point":
+        if isinstance(other, Point):
+            return Point(self.x / other.x, self.y / other.y)
+        return Point(self.x / other, self.y / other)
     
     def __abs__(self) -> "Point":
         return Point(abs(self.x), abs(self.y))

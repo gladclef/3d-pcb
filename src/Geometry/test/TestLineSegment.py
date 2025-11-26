@@ -34,7 +34,7 @@ class TestLineSegment(unittest.TestCase):
             np.array(self.line_segment.intersection(another_line).as_tuple()),
             np.array(expected_intersection.as_tuple()))
         
-        another_line = LineSegment(P2(1, 1), P2(1, 1))
+        another_line = LineSegment(P2(0, 1), P2(2, 1))
         expected_intersection = P2(1, 1)
         npt.assert_array_almost_equal(
             np.array(self.line_segment.intersection(another_line).as_tuple()),
