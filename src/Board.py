@@ -10,8 +10,10 @@ from Component.Component import Component
 from Component.Shape import Shape
 from FileIO.Line import Line
 from FileIO.CadFileHelper import CadFileHelper
-from Trace.SingleTrace import SingleTrace
 from Trace.PipeShape import DEFAULT_PIPE_SHAPE, PipeShape, PipeRect
+from Trace.SingleTrace import SingleTrace
+from Trace.SingleTraceFilament import SingleTraceFilament
+from Trace.SingleTraceWire import SingleTraceWire
 from tool.globals import board_parameters as g
 from tool.units import awg2mm
 import tool.vtk_tools as vt
@@ -38,8 +40,15 @@ class Board:
             trace.cleanup()
 
     @classmethod
-    def from_cad_file(cls, gencad_file: str, limit_layers=None, trace_shape: PipeShape=None) -> "Board":
+    def from_cad_file(
+        cls,
+        gencad_file: str,
+        limit_layers=None,
+        trace_shape: PipeShape=None,
+        print_mode: Literal["wire_fill","conductive_filament"]="wire_fill"
+    ) -> "Board":
         lines = Line.from_file(gencad_file)
+        TraceKlass = SingleTraceWire if print_mode == "wire_fill" else SingleTraceFilament
 
         shapes_helper = CadFileHelper("$SHAPES", "$ENDSHAPES")
         components_helper = CadFileHelper("$COMPONENTS", "$ENDCOMPONENTS")
@@ -54,7 +63,7 @@ class Board:
             
             return ret, unmatched_lines
 
-        traces, lines = get_instances(SingleTrace, lines, shape=trace_shape)
+        traces, lines = get_instances(TraceKlass, lines, shape=trace_shape)
         traces: list[SingleTrace] = traces
         pre_lines, shapes_lines, post_lines = shapes_helper.get_next_region(lines)
         lines = pre_lines + post_lines
@@ -63,7 +72,7 @@ class Board:
         lines = pre_lines + post_lines
         components: list[Component] = get_instances(Component, components_lines)[0]
 
-        SingleTrace.remove_short_traces(traces)
+        TraceKlass.remove_short_traces(traces)
 
         for component in components:
             component.assign_shape(shapes)
@@ -144,7 +153,8 @@ if __name__ == "__main__":
     board = Board.from_cad_file(
         os.path.join(example_dir, "exports", f"{example_name}.cad"),
         limit_layers,
-        trace_shape
+        trace_shape,
+        print_mode
     )
     board.cleanup()
     # if print_mode == "conductive_filament":
