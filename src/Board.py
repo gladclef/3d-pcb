@@ -63,6 +63,8 @@ class Board:
         lines = pre_lines + post_lines
         components: list[Component] = get_instances(Component, components_lines)[0]
 
+        SingleTrace.remove_short_traces(traces)
+
         for component in components:
             component.assign_shape(shapes)
         for trace in traces:

@@ -1091,6 +1091,13 @@ class SingleTrace(AbstractTrace):
 
         return ret, pre_trace + post_trace
     
+    @staticmethod
+    def remove_short_traces(traces: list["SingleTrace"]):
+        for trace in copy.copy(traces):
+            trace_tot_length = sum([s.length for s in trace.segments])
+            if trace_tot_length < Via.via_diameter() / 2 + Pin.through_hole_diameter() / 2:
+                traces.remove(trace)
+
     def _get_segments_with_through_holes(self) -> tuple[LineSegment]:
         """
         Gets the segments of the trace, with the first and last segment
