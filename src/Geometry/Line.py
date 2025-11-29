@@ -69,6 +69,8 @@ class Line:
     
     @xy0.setter
     def xy0(self, val: Point):
+        if val.distance(self.xy1) < geo.ZERO_THRESH:
+            raise ValueError(f"Error in Line.xy0.setter(): xy0 and xy1 must be different points! xy0={val}, xy1={self.xy1}")
         self._xy0 = val
     
     @property
@@ -77,6 +79,8 @@ class Line:
     
     @xy1.setter
     def xy1(self, val: Point):
+        if val.distance(self.xy0) < geo.ZERO_THRESH:
+            raise ValueError(f"Error in Line.xy1.setter(): xy0 and xy1 must be different points! xy0={self.xy0}, xy1={val}")
         self._xy1 = val
 
     @property
