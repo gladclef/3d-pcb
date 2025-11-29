@@ -1,5 +1,3 @@
-import functools as ft
-
 import numpy as np
 
 from Geometry.Point import Point
@@ -72,7 +70,6 @@ class Line:
     @xy0.setter
     def xy0(self, val: Point):
         self._xy0 = val
-        del self.xy
     
     @property
     def xy1(self) -> Point:
@@ -81,7 +78,6 @@ class Line:
     @xy1.setter
     def xy1(self, val: Point):
         self._xy1 = val
-        del self.xy
 
     @property
     def x0(self) -> float:
@@ -103,7 +99,7 @@ class Line:
         """ The y component of the end of this line. """
         return self.xy1.y
 
-    @ft.cached_property
+    @property
     def xy(self) -> Point:
         """ This directionality of this line as a unit vector. """
         return (self.xy1 - self.xy0) / (self.xy1.distance(self.xy0))
